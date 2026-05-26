@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Patient History</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 10px; }
+        th { background: #1a73e8; color: white; }
+    </style>
+</head>
+
+<body>
+
+<h2>Patient Prediction History</h2>
+
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Age</th>
+        <th>Risk</th>
+        <th>Probability %</th>
+        <th>Date</th>
+    </tr>
+
+    {% for p in patients %}
+    <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.age }}</td>
+        <td>{{ p.risk }}</td>
+        <td>{{ p.probability }}</td>
+        <td>{{ p.date }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

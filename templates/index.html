@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Heart Disease Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(to right, #141e30, #243b55);
+            margin: 0;
+            padding: 0;
+        }
+
+        .dashboard {
+            width: 80%;
+            margin: auto;
+            margin-top: 30px;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0px 0px 20px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a73e8;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        input, select {
+            padding: 10px;
+            width: 95%;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        button:hover {
+            background: #0f5bd6;
+        }
+
+        .result {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 22px;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .low {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2 class="header">🫀 AI Heart Disease Prediction System</h2>
+
+<div class="dashboard">
+
+    <form action="/predict" method="POST">
+
+        <div class="grid">
+
+            <input name="Age" placeholder="Age" required>
+            <select name="Gender">
+                <option value="1">Male</option>
+                <option value="0">Female</option>
+            </select>
+
+            <input name="Weight" placeholder="Weight" required>
+            <input name="Height" placeholder="Height" required>
+
+            <input name="BMI" placeholder="BMI" required>
+
+            <select name="Smoking">
+                <option value="0">Non-Smoker</option>
+                <option value="1">Smoker</option>
+            </select>
+
+            <select name="Alcohol_Intake">
+                <option value="0">None</option>
+                <option value="1">Low</option>
+                <option value="2">Moderate</option>
+                <option value="3">High</option>
+            </select>
+
+            <select name="Physical_Activity">
+                <option value="0">Sedentary</option>
+                <option value="1">Moderate</option>
+                <option value="2">Active</option>
+            </select>
+
+            <select name="Diet">
+                <option value="0">Unhealthy</option>
+                <option value="1">Average</option>
+                <option value="2">Healthy</option>
+            </select>
+
+            <select name="Stress_Level">
+                <option value="0">Low</option>
+                <option value="1">Medium</option>
+                <option value="2">High</option>
+            </select>
+
+            <input name="Hypertension" placeholder="Hypertension (0/1)">
+            <input name="Diabetes" placeholder="Diabetes (0/1)">
+            <input name="Hyperlipidemia" placeholder="Hyperlipidemia (0/1)">
+            <input name="Family_History" placeholder="Family History (0/1)">
+            <input name="Previous_Heart_Attack" placeholder="Previous Heart Attack (0/1)">
+
+            <input name="Systolic_BP" placeholder="Systolic BP">
+            <input name="Diastolic_BP" placeholder="Diastolic BP">
+            <input name="Heart_Rate" placeholder="Heart Rate">
+            <input name="Blood_Sugar_Fasting" placeholder="Blood Sugar">
+            <input name="Cholesterol_Total" placeholder="Cholesterol">
+
+        </div>
+
+        <button type="submit">🔍 Predict Heart Disease Risk</button>
+
+    </form>
+
+    {% if prediction_text %}
+        <div class="result {{ 'high' if 'High' in prediction_text else 'low' }}">
+            {{ prediction_text }}
+        </div>
+    {% endif %}
+
+</div>
+<a href="/dashboard">📊 View Analytics Dashboard</a>
+
+</body>
+</html>
