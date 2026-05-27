@@ -80,7 +80,9 @@ def home():
 @app.route("/history")
 def history():
 
-    patients = Patient.query.order_by(Patient.date.desc()).all()
+    patients = Patient.query.order_by(
+        Patient.date.desc()
+    ).all()
 
     return render_template(
         "history.html",
@@ -94,13 +96,9 @@ def history():
 @app.route("/dashboard")
 def dashboard():
 
-    # Create static folder if not exists
+    # Create static folder
     if not os.path.exists("static"):
         os.makedirs("static")
-
-    # ======================================
-    # FETCH DATABASE DATA
-    # ======================================
 
     patients = Patient.query.all()
 
@@ -109,14 +107,19 @@ def dashboard():
     cholesterol_values = [p.cholesterol for p in patients]
     probabilities = [p.probability for p in patients]
 
-    high_risk = Patient.query.filter_by(risk="High Risk").count()
-    low_risk = Patient.query.filter_by(risk="Low Risk").count()
+    high_risk = Patient.query.filter_by(
+        risk="High Risk"
+    ).count()
+
+    low_risk = Patient.query.filter_by(
+        risk="Low Risk"
+    ).count()
 
     # ======================================
-    # RISK DISTRIBUTION CHART
+    # RISK CHART
     # ======================================
 
-    plt.figure(figsize=(6,4))
+    plt.figure(figsize=(6, 4))
 
     plt.bar(
         ["High Risk", "Low Risk"],
@@ -134,47 +137,65 @@ def dashboard():
     # AGE DISTRIBUTION
     # ======================================
 
-    plt.figure(figsize=(6,4))
+    if len(ages) > 0:
 
-    plt.hist(ages, bins=10, color="skyblue")
+        plt.figure(figsize=(6, 4))
 
-    plt.title("Age Distribution")
-    plt.xlabel("Age")
-    plt.ylabel("Patients")
+        plt.hist(
+            ages,
+            bins=10,
+            color="skyblue"
+        )
 
-    plt.savefig("static/age_chart.png")
-    plt.close()
+        plt.title("Age Distribution")
+        plt.xlabel("Age")
+        plt.ylabel("Patients")
+
+        plt.savefig("static/age_chart.png")
+        plt.close()
 
     # ======================================
     # BMI DISTRIBUTION
     # ======================================
 
-    plt.figure(figsize=(6,4))
+    if len(bmi_values) > 0:
 
-    plt.hist(bmi_values, bins=10, color="orange")
+        plt.figure(figsize=(6, 4))
 
-    plt.title("BMI Distribution")
-    plt.xlabel("BMI")
+        plt.hist(
+            bmi_values,
+            bins=10,
+            color="orange"
+        )
 
-    plt.savefig("static/bmi_chart.png")
-    plt.close()
+        plt.title("BMI Distribution")
+        plt.xlabel("BMI")
+
+        plt.savefig("static/bmi_chart.png")
+        plt.close()
 
     # ======================================
     # CHOLESTEROL DISTRIBUTION
     # ======================================
 
-    plt.figure(figsize=(6,4))
+    if len(cholesterol_values) > 0:
 
-    plt.hist(cholesterol_values, bins=10, color="purple")
+        plt.figure(figsize=(6, 4))
 
-    plt.title("Cholesterol Distribution")
-    plt.xlabel("Cholesterol")
+        plt.hist(
+            cholesterol_values,
+            bins=10,
+            color="purple"
+        )
 
-    plt.savefig("static/cholesterol_chart.png")
-    plt.close()
+        plt.title("Cholesterol Distribution")
+        plt.xlabel("Cholesterol")
+
+        plt.savefig("static/cholesterol_chart.png")
+        plt.close()
 
     # ======================================
-    # HEATMAP ANALYTICS
+    # HEATMAP
     # ======================================
 
     if len(patients) > 0:
@@ -188,7 +209,7 @@ def dashboard():
 
         correlation = data.corr()
 
-        plt.figure(figsize=(8,6))
+        plt.figure(figsize=(8, 6))
 
         sns.heatmap(
             correlation,
@@ -215,85 +236,116 @@ def dashboard():
 @app.route("/predict", methods=["POST"])
 def predict():
 
-    features = [
+    try:
 
-        float(request.form["Age"]),
-        float(request.form["Gender"]),
-        float(request.form["Weight"]),
-        float(request.form["Height"]),
-        float(request.form["BMI"]),
-        float(request.form["Smoking"]),
-        float(request.form["Alcohol_Intake"]),
-        float(request.form["Physical_Activity"]),
-        float(request.form["Diet"]),
-        float(request.form["Stress_Level"]),
-        float(request.form["Hypertension"]),
-        float(request.form["Diabetes"]),
-        float(request.form["Hyperlipidemia"]),
-        float(request.form["Family_History"]),
-        float(request.form["Previous_Heart_Attack"]),
-        float(request.form["Systolic_BP"]),
-        float(request.form["Diastolic_BP"]),
-        float(request.form["Heart_Rate"]),
-        float(request.form["Blood_Sugar_Fasting"]),
-        float(request.form["Cholesterol_Total"])
+        # ==================================
+        # GET INPUTS
+        # ==================================
 
-    ]
+        features = [
 
-    # Convert to NumPy array
-    input_data = np.array([features])
+            float(request.form["Age"]),
+            float(request.form["Gender"]),
+            float(request.form["Weight"]),
+            float(request.form["Height"]),
+            float(request.form["BMI"]),
+            float(request.form["Smoking"]),
+            float(request.form["Alcohol_Intake"]),
+            float(request.form["Physical_Activity"]),
+            float(request.form["Diet"]),
+            float(request.form["Stress_Level"]),
+            float(request.form["Hypertension"]),
+            float(request.form["Diabetes"]),
+            float(request.form["Hyperlipidemia"]),
+            float(request.form["Family_History"]),
+            float(request.form["Systolic_BP"]),
+            float(request.form["Diastolic_BP"]),
+            float(request.form["Heart_Rate"]),
+            float(request.form["Blood_Sugar_Fasting"]),
+            float(request.form["Cholesterol_Total"])
 
-    # Scale input
-    input_scaled = scaler.transform(input_data)
+        ]
 
-    # Prediction
-    prediction = model.predict(input_scaled)[0]
+        # ==================================
+        # CONVERT TO NUMPY ARRAY
+        # ==================================
 
-    # Probability
-    probability = model.predict_proba(input_scaled)[0][1] * 100
-    probability = round(probability, 2)
+        input_data = np.array([features])
 
-    # Risk level
-    if prediction == 1:
-        result = "High Risk"
-    else:
-        result = "Low Risk"
+        # ==================================
+        # SCALE INPUT
+        # ==================================
 
-    # ======================================
-    # SAVE TO DATABASE
-    # ======================================
+        input_scaled = scaler.transform(input_data)
 
-    patient = Patient(
+        # ==================================
+        # MAKE PREDICTION
+        # ==================================
 
-        age=features[0],
-        gender=features[1],
+        prediction = model.predict(
+            input_scaled
+        )[0]
 
-        bmi=features[4],
+        probability = model.predict_proba(
+            input_scaled
+        )[0][1] * 100
 
-        systolic=features[15],
-        diastolic=features[16],
+        probability = round(probability, 2)
 
-        cholesterol=features[19],
+        # ==================================
+        # DETERMINE RISK
+        # ==================================
 
-        risk=result,
-        probability=probability
-    )
+        if prediction == 1:
+            result = "High Risk"
+        else:
+            result = "Low Risk"
 
-    db.session.add(patient)
-    db.session.commit()
+        # ==================================
+        # SAVE TO DATABASE
+        # ==================================
 
-    # ======================================
-    # RETURN RESULT
-    # ======================================
+        patient = Patient(
 
-    return render_template(
-        "index.html",
-        prediction_text=f"{result} ({probability}%)"
-    )
+            age=features[0],
+            gender=features[1],
+
+            bmi=features[4],
+
+            systolic=features[14],
+            diastolic=features[15],
+
+            cholesterol=features[18],
+
+            risk=result,
+            probability=probability
+        )
+
+        db.session.add(patient)
+        db.session.commit()
+
+        # ==================================
+        # RETURN RESULT
+        # ==================================
+
+        return render_template(
+            "index.html",
+            prediction_text=f"{result} ({probability}%)"
+        )
+
+    except Exception as e:
+
+        return render_template(
+            "index.html",
+            prediction_text=f"Error: {str(e)}"
+        )
 
 # ==========================================
 # RUN APPLICATION
 # ==========================================
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    app.run(
+        debug=True,
+        use_reloader=False
+    )

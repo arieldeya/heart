@@ -24,17 +24,31 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import (
+    train_test_split,
+    cross_val_score
+)
+
+from sklearn.preprocessing import (
+    LabelEncoder,
+    StandardScaler
+)
 
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
-    confusion_matrix
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score
 )
 
-from sklearn.ensemble import VotingClassifier
+from sklearn.ensemble import (
+    VotingClassifier,
+    RandomForestClassifier
+)
+
 from sklearn.linear_model import LogisticRegression
 
 from xgboost import XGBClassifier
@@ -105,7 +119,7 @@ print("\nMISSING VALUES AFTER CLEANING:")
 print(df.isnull().sum())
 
 # ============================================
-# ENCODE CATEGORICAL DATA
+# ENCODE CATEGORICAL FEATURES
 # ============================================
 
 print("\n===================================")
@@ -138,6 +152,20 @@ for col in categorical_columns:
 print("\nENCODING COMPLETE!")
 
 # ============================================
+# REMOVE DUPLICATES
+# ============================================
+
+print("\n===================================")
+print("REMOVING DUPLICATES...")
+print("===================================")
+
+print("Rows Before:", len(df))
+
+df = df.drop_duplicates()
+
+print("Rows After :", len(df))
+
+# ============================================
 # FEATURES + TARGET
 # ============================================
 
@@ -146,30 +174,55 @@ TARGET_COLUMN = "Heart_Disease"
 if TARGET_COLUMN not in df.columns:
 
     raise Exception(
-        f"\nERROR: '{TARGET_COLUMN}' column not found in dataset."
+        f"ERROR: '{TARGET_COLUMN}' column not found."
     )
 
-X = df.drop(TARGET_COLUMN, axis=1)
+# ============================================
+# REMOVE DATA LEAKAGE FEATURES
+# ============================================
+
+leakage_columns = []
+
+if "Previous_Heart_Attack" in df.columns:
+    leakage_columns.append("Previous_Heart_Attack")
+
+print("\nRemoved Leakage Features:")
+print(leakage_columns)
+
+X = df.drop(
+    [TARGET_COLUMN] + leakage_columns,
+    axis=1
+)
+
 y = df[TARGET_COLUMN]
 
 # ============================================
-# TRAIN TEST SPLIT
+# TRAIN / VALIDATION / TEST SPLIT
 # ============================================
 
 print("\n===================================")
 print("SPLITTING DATA...")
 print("===================================")
 
-X_train, X_test, y_train, y_test = train_test_split(
+X_train, X_temp, y_train, y_temp = train_test_split(
     X,
     y,
-    test_size=0.2,
+    test_size=0.30,
     random_state=42,
     stratify=y
 )
 
-print("\nTRAIN SHAPE:", X_train.shape)
-print("TEST SHAPE:", X_test.shape)
+X_val, X_test, y_val, y_test = train_test_split(
+    X_temp,
+    y_temp,
+    test_size=0.50,
+    random_state=42,
+    stratify=y_temp
+)
+
+print("TRAIN:", X_train.shape)
+print("VALIDATION:", X_val.shape)
+print("TEST:", X_test.shape)
 
 # ============================================
 # FEATURE SCALING
@@ -182,12 +235,17 @@ print("===================================")
 scaler = StandardScaler()
 
 X_train_scaled = scaler.fit_transform(X_train)
+
+X_val_scaled = scaler.transform(X_val)
+
 X_test_scaled = scaler.transform(X_test)
 
-# Save scaler
-joblib.dump(scaler, "scaler.pkl")
+joblib.dump(
+    scaler,
+    "scaler.pkl"
+)
 
-print("\nSCALER SAVED!")
+print("SCALER SAVED!")
 
 # ============================================
 # XGBOOST MODEL
@@ -198,34 +256,169 @@ print("TRAINING XGBOOST MODEL...")
 print("===================================")
 
 xgb_model = XGBClassifier(
-    n_estimators=150,
-    learning_rate=0.1,
-    max_depth=6,
+    n_estimators=80,
+    max_depth=3,
+    learning_rate=0.05,
+    subsample=0.8,
+    colsample_bytree=0.8,
     random_state=42,
-    eval_metric='logloss'
+    eval_metric="logloss"
 )
 
-xgb_model.fit(X_train_scaled, y_train)
+# ============================================
+# CROSS VALIDATION
+# ============================================
 
-# Predictions
-xgb_predictions = xgb_model.predict(X_test_scaled)
+cv_scores = cross_val_score(
+    xgb_model,
+    X_train_scaled,
+    y_train,
+    cv=5,
+    scoring="accuracy"
+)
 
-# Accuracy
+print("\nCross Validation Scores:")
+print(cv_scores)
+
+print(
+    "Mean CV Accuracy:",
+    round(cv_scores.mean() * 100, 2),
+    "%"
+)
+
+# ============================================
+# TRAIN XGBOOST
+# ============================================
+
+xgb_model.fit(
+    X_train_scaled,
+    y_train
+)
+
+# ============================================
+# PREDICTIONS
+# ============================================
+
+xgb_predictions = xgb_model.predict(
+    X_test_scaled
+)
+
+xgb_probabilities = xgb_model.predict_proba(
+    X_test_scaled
+)[:, 1]
+
+# ============================================
+# EVALUATION METRICS
+# ============================================
+
 xgb_accuracy = accuracy_score(
     y_test,
     xgb_predictions
 )
 
+precision = precision_score(
+    y_test,
+    xgb_predictions
+)
+
+recall = recall_score(
+    y_test,
+    xgb_predictions
+)
+
+f1 = f1_score(
+    y_test,
+    xgb_predictions
+)
+
+roc_auc = roc_auc_score(
+    y_test,
+    xgb_probabilities
+)
+
 print(
-    "\nXGBOOST ACCURACY:",
+    "\nXGBOOST TEST ACCURACY:",
     round(xgb_accuracy * 100, 2),
     "%"
 )
 
-# Save model
-joblib.dump(xgb_model, "xgb_model.pkl")
+print(
+    "Precision:",
+    round(precision * 100, 2),
+    "%"
+)
+
+print(
+    "Recall:",
+    round(recall * 100, 2),
+    "%"
+)
+
+print(
+    "F1 Score:",
+    round(f1 * 100, 2),
+    "%"
+)
+
+print(
+    "ROC AUC:",
+    round(roc_auc, 4)
+)
+
+# ============================================
+# SAVE XGBOOST MODEL
+# ============================================
+
+joblib.dump(
+    xgb_model,
+    "xgb_model.pkl"
+)
 
 print("XGBOOST MODEL SAVED!")
+
+# ============================================
+# FEATURE IMPORTANCE
+# ============================================
+
+importance = pd.DataFrame(
+    {
+        "Feature": X.columns,
+        "Importance": xgb_model.feature_importances_
+    }
+)
+
+importance = importance.sort_values(
+    by="Importance",
+    ascending=False
+)
+
+print("\nTOP 10 IMPORTANT FEATURES")
+print(importance.head(10))
+
+# ============================================
+# FEATURE IMPORTANCE PLOT
+# ============================================
+
+plt.figure(figsize=(10, 6))
+
+sns.barplot(
+    data=importance.head(10),
+    x="Importance",
+    y="Feature"
+)
+
+plt.title(
+    "Top 10 Important Features"
+)
+
+plt.savefig(
+    "feature_importance.png",
+    bbox_inches="tight"
+)
+
+plt.close()
+
+print("FEATURE IMPORTANCE SAVED!")
 
 # ============================================
 # LSTM MODEL
@@ -239,7 +432,6 @@ if tensorflow_available:
     print("TRAINING LSTM MODEL...")
     print("===================================")
 
-    # Reshape for LSTM
     X_train_lstm = np.reshape(
         X_train_scaled,
         (
@@ -258,7 +450,6 @@ if tensorflow_available:
         )
     )
 
-    # Build model
     lstm_model = Sequential()
 
     lstm_model.add(
@@ -285,15 +476,13 @@ if tensorflow_available:
         )
     )
 
-    # Compile model
     lstm_model.compile(
         optimizer='adam',
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
 
-    # Train model
-    history = lstm_model.fit(
+    lstm_model.fit(
         X_train_lstm,
         y_train,
         epochs=10,
@@ -302,7 +491,6 @@ if tensorflow_available:
         verbose=1
     )
 
-    # Predict
     lstm_predictions = lstm_model.predict(
         X_test_lstm
     )
@@ -322,7 +510,6 @@ if tensorflow_available:
         "%"
     )
 
-    # Save model
     lstm_model.save("lstm_model.h5")
 
     print("LSTM MODEL SAVED!")
@@ -332,7 +519,7 @@ else:
     print("\nLSTM MODEL SKIPPED!")
 
 # ============================================
-# HYBRID ENSEMBLE MODEL
+# ENSEMBLE MODEL
 # ============================================
 
 print("\n===================================")
@@ -343,21 +530,20 @@ ensemble_model = VotingClassifier(
 
     estimators=[
 
-        (
-            'xgb',
-            XGBClassifier(
-                n_estimators=100,
-                learning_rate=0.1,
-                max_depth=5,
-                random_state=42,
-                eval_metric='logloss'
-            )
-        ),
+        ('xgb', xgb_model),
 
         (
             'lr',
             LogisticRegression(
                 max_iter=1000
+            )
+        ),
+
+        (
+            'rf',
+            RandomForestClassifier(
+                n_estimators=200,
+                random_state=42
             )
         )
 
@@ -375,9 +561,18 @@ ensemble_predictions = ensemble_model.predict(
     X_test_scaled
 )
 
+ensemble_probabilities = ensemble_model.predict_proba(
+    X_test_scaled
+)[:, 1]
+
 ensemble_accuracy = accuracy_score(
     y_test,
     ensemble_predictions
+)
+
+ensemble_auc = roc_auc_score(
+    y_test,
+    ensemble_probabilities
 )
 
 print(
@@ -386,7 +581,15 @@ print(
     "%"
 )
 
-# Save ensemble model
+print(
+    "ENSEMBLE ROC AUC:",
+    round(ensemble_auc, 4)
+)
+
+# ============================================
+# SAVE ENSEMBLE MODEL
+# ============================================
+
 joblib.dump(
     ensemble_model,
     "ensemble_model.pkl"
@@ -415,7 +618,7 @@ accuracies = [
 ]
 
 # ============================================
-# ACCURACY BAR CHART
+# MODEL COMPARISON PLOT
 # ============================================
 
 plt.figure(figsize=(10, 6))
@@ -527,6 +730,7 @@ print("✔ scaler.pkl")
 print("✔ xgb_model.pkl")
 print("✔ ensemble_model.pkl")
 print("✔ encoders.pkl")
+print("✔ feature_importance.png")
 print("✔ model_comparison.png")
 print("✔ confusion_matrix.png")
 
