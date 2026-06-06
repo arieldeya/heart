@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Doctor Dashboard</title>
+
+<style>
+
+body{
+    background:#071120;
+    color:white;
+    font-family:Segoe UI;
+    padding:30px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th, td{
+    padding:14px;
+    border-bottom:1px solid #1e293b;
+}
+
+th{
+    background:#0f172a;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Doctor Dashboard</h1>
+
+<table>
+
+<tr>
+    <th>ID</th>
+    <th>Age</th>
+    <th>BMI</th>
+    <th>Risk</th>
+    <th>Probability</th>
+</tr>
+
+{% for patient in patients %}
+
+<tr>
+    <td>{{ patient.id }}</td>
+    <td>{{ patient.age }}</td>
+    <td>{{ patient.bmi }}</td>
+    <td>{{ patient.risk }}</td>
+    <td>{{ patient.probability }}%</td>
+</tr>
+
+{% endfor %}
+
+</table>
+
+<br>
+
+<a href="/logout">Logout</a>
+
+</body>
+</html>

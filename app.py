@@ -9,15 +9,32 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    login_user,
+    login_required,
+    logout_user,
+    current_user
+)
+
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash
+)
+
+from flask import redirect, url_for, flash, session
 
 # ==========================================
 # FLASK APP SETUP
 # ==========================================
 
 app = Flask(__name__)
+app.secret_key = "heart_disease_secret_key"
 
 # ==========================================
 # DATABASE CONFIGURATION
@@ -27,6 +44,20 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///patients.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+# =========================
+# LOGIN MANAGER
+# =========================
+
+login_manager = LoginManager()
+
+login_manager.init_app(app)
+
+login_manager.login_view = "login"
+
+@login_manager.user_loader
+def load_user(user_id):
+
+    return User.query.get(int(user_id))
 
 # ==========================================
 # LOAD MODEL + SCALER
@@ -57,6 +88,20 @@ class Patient(db.Model):
     probability = db.Column(db.Float)
 
     date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # =========================
+# USER TABLE
+# =========================
+
+class User(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    username = db.Column(db.String(100), unique=True)
+
+    password = db.Column(db.String(100))
+
+    role = db.Column(db.String(50))
 
 # ==========================================
 # CREATE DATABASE
@@ -64,6 +109,33 @@ class Patient(db.Model):
 
 with app.app_context():
     db.create_all()
+        # CREATE DEFAULT USERS
+
+    if not User.query.filter_by(username="admin").first():
+
+        admin = User(
+            username="admin",
+            password="admin123",
+            role="admin"
+        )
+
+        doctor = User(
+            username="doctor",
+            password="doctor123",
+            role="doctor"
+        )
+
+        patient = User(
+            username="patient",
+            password="patient123",
+            role="patient"
+        )
+
+        db.session.add(admin)
+        db.session.add(doctor)
+        db.session.add(patient)
+
+        db.session.commit()
 
 # ==========================================
 # HOME PAGE
@@ -89,23 +161,209 @@ def history():
         patients=patients
     )
 
-# ==========================================
+# =========================
 # DASHBOARD PAGE
-# ==========================================
+# =========================
 
 @app.route("/dashboard")
 def dashboard():
 
-    # Create static folder
+    # Create static folder if missing
     if not os.path.exists("static"):
         os.makedirs("static")
 
+    # =========================
+    # FETCH DATA
+    # =========================
+
     patients = Patient.query.all()
+
+    # Prevent empty database errors
+    if len(patients) == 0:
+
+        return render_template(
+            "dashboard.html",
+            total_patients=0,
+            high_risk=0,
+            low_risk=0
+        )
 
     ages = [p.age for p in patients]
     bmi_values = [p.bmi for p in patients]
     cholesterol_values = [p.cholesterol for p in patients]
     probabilities = [p.probability for p in patients]
+
+    high_risk = Patient.query.filter_by(risk="High Risk").count()
+    low_risk = Patient.query.filter_by(risk="Low Risk").count()
+
+    # =========================
+    # RISK CHART
+    # =========================
+
+    plt.figure(figsize=(5, 4))
+
+    plt.bar(
+        ["High Risk", "Low Risk"],
+        [high_risk, low_risk],
+        color=["red", "green"]
+    )
+
+    plt.title("Risk Distribution")
+
+    plt.savefig("static/risk_chart.png")
+
+    plt.close()
+
+    # =========================
+    # AGE CHART
+    # =========================
+
+    plt.figure(figsize=(5, 4))
+
+    plt.hist(ages, bins=10)
+
+    plt.title("Age Distribution")
+
+    plt.xlabel("Age")
+    plt.ylabel("Patients")
+
+    plt.savefig("static/age_chart.png")
+
+    plt.close()
+
+    # =========================
+    # BMI CHART
+    # =========================
+
+    plt.figure(figsize=(5, 4))
+
+    plt.hist(bmi_values, bins=10)
+
+    plt.title("BMI Distribution")
+
+    plt.xlabel("BMI")
+
+    plt.savefig("static/bmi_chart.png")
+
+    plt.close()
+
+    # =========================
+    # CHOLESTEROL CHART
+    # =========================
+
+    plt.figure(figsize=(5, 4))
+
+    plt.hist(cholesterol_values, bins=10)
+
+    plt.title("Cholesterol Distribution")
+
+    plt.xlabel("Cholesterol")
+
+    plt.savefig("static/cholesterol_chart.png")
+
+    plt.close()
+
+    # =========================
+    # HEATMAP
+    # =========================
+
+    import pandas as pd
+
+    data = pd.DataFrame({
+        "Age": ages,
+        "BMI": bmi_values,
+        "Cholesterol": cholesterol_values,
+        "Probability": probabilities
+    })
+
+    correlation = data.corr()
+
+    plt.figure(figsize=(8, 6))
+
+    sns.heatmap(
+        correlation,
+        annot=True,
+        cmap="coolwarm"
+    )
+
+    plt.title("Correlation Heatmap")
+
+    plt.savefig("static/heatmap.png")
+
+    plt.close()
+
+    # =========================
+    # RETURN DASHBOARD
+    # =========================
+
+    return render_template(
+        "dashboard.html",
+        total_patients=len(patients),
+        high_risk=high_risk,
+        low_risk=low_risk
+    )
+    # =========================
+# LOGIN
+# =========================
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "POST":
+
+        username = request.form["username"]
+        password = request.form["password"]
+
+        user = User.query.filter_by(
+            username=username,
+            password=password
+        ).first()
+
+        if user:
+
+            session["user"] = user.username
+            session["role"] = user.role
+
+            # ADMIN
+            if user.role == "admin":
+                return redirect("/admin")
+
+            # DOCTOR
+            elif user.role == "doctor":
+                return redirect("/doctor")
+
+            # PATIENT
+            elif user.role == "patient":
+                return redirect("/patient")
+
+        return "Invalid Login"
+
+    return render_template("login.html")
+
+# =========================
+# LOGOUT
+# =========================
+
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect("/login")
+# =========================
+# ADMIN DASHBOARD
+# =========================
+
+@app.route("/admin")
+def admin_dashboard():
+
+    if "role" not in session:
+        return redirect("/login")
+
+    if session["role"] != "admin":
+        return "Access Denied"
+
+    total_patients = Patient.query.count()
 
     high_risk = Patient.query.filter_by(
         risk="High Risk"
@@ -114,6 +372,48 @@ def dashboard():
     low_risk = Patient.query.filter_by(
         risk="Low Risk"
     ).count()
+
+    return render_template(
+        "admin_dashboard.html",
+        total_patients=total_patients,
+        high_risk=high_risk,
+        low_risk=low_risk
+    )
+
+# =========================
+# DOCTOR DASHBOARD
+# =========================
+
+@app.route("/doctor")
+def doctor_dashboard():
+
+    if "role" not in session:
+        return redirect("/login")
+
+    if session["role"] != "doctor":
+        return "Access Denied"
+
+    patients = Patient.query.all()
+
+    return render_template(
+        "doctor_dashboard.html",
+        patients=patients
+    )
+
+# =========================
+# PATIENT PORTAL
+# =========================
+
+@app.route("/patient")
+def patient_dashboard():
+
+    if "role" not in session:
+        return redirect("/login")
+
+    if session["role"] != "patient":
+        return "Access Denied"
+
+    return render_template("patient_dashboard.html")
 
     # ======================================
     # RISK CHART

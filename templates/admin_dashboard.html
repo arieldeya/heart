@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>Admin Dashboard</title>
+
+    <style>
+
+        body{
+            background:#071120;
+            color:white;
+            font-family:Segoe UI;
+            padding:40px;
+        }
+
+        .card{
+            background:#0f172a;
+            padding:30px;
+            border-radius:20px;
+            margin-bottom:20px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<h1>Admin Analytics Dashboard</h1>
+
+<div class="card">
+
+    <h2>Total Patients</h2>
+
+    <h1>{{ total_patients }}</h1>
+
+</div>
+
+<div class="card">
+
+    <h2>High Risk Cases</h2>
+
+    <h1>{{ high_risk }}</h1>
+
+</div>
+
+<div class="card">
+
+    <h2>Low Risk Cases</h2>
+
+    <h1>{{ low_risk }}</h1>
+
+</div>
+
+<a href="/logout" style="color:#00ffd5;">Logout</a>
+
+</body>
+</html>
