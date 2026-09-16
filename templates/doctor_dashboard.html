@@ -1,67 +1,624 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
 
-<title>Doctor Dashboard</title>
+    <meta charset="UTF-8">
 
-<style>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-body{
-    background:#071120;
+    <title>Doctor Dashboard</title>
+
+    <style>
+
+        *{
+            box-sizing:border-box;
+            margin:0;
+            padding:0;
+        }
+
+        body{
+            background:#071120;
+            color:white;
+            font-family:"Segoe UI", Arial, sans-serif;
+            min-height:100vh;
+        }
+
+        /* MAIN CONTAINER */
+
+        .container{
+            width:100%;
+            padding:30px;
+        }
+
+        /* HEADER */
+
+        .header{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:30px;
+        }
+
+        .header h1{
+            font-size:30px;
+            margin-bottom:8px;
+        }
+
+        .header p{
+            color:#94a3b8;
+            font-size:14px;
+        }
+
+        .doctor-badge{
+            background:#0f172a;
+            border:1px solid #1e293b;
+            padding:12px 18px;
+            border-radius:10px;
+            color:#5eead4;
+            font-weight:600;
+        }
+
+        /* SEARCH SECTION */
+
+        .search-card{
+            background:#0f172a;
+            border:1px solid #1e293b;
+            border-radius:16px;
+            padding:25px;
+            margin-bottom:25px;
+        }
+
+        .search-card h2{
+            font-size:20px;
+            margin-bottom:8px;
+        }
+
+        .search-card p{
+            color:#94a3b8;
+            font-size:14px;
+            margin-bottom:20px;
+        }
+
+        .search-form{
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+        }
+
+        .search-input{
+            flex:1;
+            min-width:250px;
+            background:#071120;
+            color:white;
+            border:1px solid #334155;
+            border-radius:9px;
+            padding:13px 15px;
+            outline:none;
+        }
+
+        .search-input:focus{
+            border-color:#14b8a6;
+        }
+
+        .risk-select{
+            background:#071120;
+            color:white;
+            border:1px solid #334155;
+            border-radius:9px;
+            padding:13px 15px;
+            outline:none;
+        }
+
+        .search-button{
+            background:#14b8a6;
+            color:white;
+            border:none;
+            padding:13px 22px;
+            border-radius:9px;
+            font-weight:600;
+            cursor:pointer;
+        }
+
+        .search-button:hover{
+            background:#0d9488;
+        }
+
+        .clear-button{
+            background:#334155;
+            color:white;
+            text-decoration:none;
+            padding:13px 20px;
+            border-radius:9px;
+            font-weight:600;
+        }
+
+        .clear-button:hover{
+            background:#475569;
+        }
+
+        /* TABLE CARD */
+
+        .table-card{
+            background:#0f172a;
+            border:1px solid #1e293b;
+            border-radius:16px;
+            overflow:hidden;
+        }
+
+        .table-header{
+            padding:22px 25px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            border-bottom:1px solid #1e293b;
+        }
+
+        .table-header h2{
+            font-size:20px;
+        }
+
+        .patient-count{
+            background:#134e4a;
+            color:#5eead4;
+            padding:7px 13px;
+            border-radius:20px;
+            font-size:13px;
+            font-weight:600;
+        }
+
+        .table-container{
+            overflow-x:auto;
+        }
+
+        table{
+            width:100%;
+            border-collapse:collapse;
+        }
+
+        th,
+        td{
+            padding:15px;
+            border-bottom:1px solid #1e293b;
+            text-align:left;
+        }
+
+        th{
+            background:#111c2e;
+            color:#94a3b8;
+            font-size:13px;
+            text-transform:uppercase;
+        }
+
+        td{
+            color:#e2e8f0;
+            font-size:14px;
+        }
+
+        tr:hover{
+            background:#111c2e;
+        }
+
+        /* RISK BADGES */
+
+        .risk{
+            display:inline-block;
+            padding:6px 11px;
+            border-radius:20px;
+            font-size:12px;
+            font-weight:700;
+        }
+
+        .high-risk{
+            background:#450a0a;
+            color:#fca5a5;
+        }
+
+        .low-risk{
+            background:#052e16;
+            color:#86efac;
+        }
+
+        /* MEDICAL NOTES BUTTON */
+
+.notes-button{
+    display:inline-block;
+    background:#134e4a;
+    color:#5eead4;
+    text-decoration:none;
+    padding:7px 12px;
+    border-radius:7px;
+    font-size:12px;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+/* PRESCRIPTION BUTTON */
+
+.prescription-button{
+    display:inline-block;
+    background:#164e63;
+    color:#67e8f9;
+    text-decoration:none;
+    padding:7px 12px;
+    border-radius:7px;
+    font-size:12px;
+    font-weight:600;
+    white-space:nowrap;
+    margin-left:5px;
+}
+
+.prescription-button:hover{
+    background:#155e75;
     color:white;
-    font-family:Segoe UI;
-    padding:30px;
 }
 
-table{
-    width:100%;
-    border-collapse:collapse;
+
+/* ACTION BUTTONS */
+
+.action-buttons{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    flex-wrap:wrap;
 }
 
-th, td{
-    padding:14px;
-    border-bottom:1px solid #1e293b;
+.notes-button:hover{
+    background:#115e59;
+    color:white;
 }
 
-th{
-    background:#0f172a;
-}
+        /* EMPTY STATE */
 
-</style>
+        .empty{
+            text-align:center;
+            padding:50px 20px;
+            color:#94a3b8;
+        }
+
+        .empty-icon{
+            font-size:40px;
+            margin-bottom:12px;
+        }
+
+        /* FOOTER */
+
+        .footer{
+            margin-top:25px;
+        }
+
+        .logout{
+            display:inline-block;
+            background:#dc2626;
+            color:white;
+            text-decoration:none;
+            padding:11px 20px;
+            border-radius:8px;
+            font-weight:600;
+        }
+
+        .logout:hover{
+            background:#b91c1c;
+        }
+
+        /* MOBILE */
+
+        @media(max-width:700px){
+
+            .container{
+                padding:20px;
+            }
+
+            .header{
+                flex-direction:column;
+                align-items:flex-start;
+                gap:15px;
+            }
+
+            .search-form{
+                flex-direction:column;
+            }
+
+            .search-input,
+            .risk-select,
+            .search-button,
+            .clear-button{
+                width:100%;
+            }
+
+        }
+
+    </style>
 
 </head>
 
+
 <body>
 
-<h1>Doctor Dashboard</h1>
+<div class="container">
 
-<table>
 
-<tr>
-    <th>ID</th>
-    <th>Age</th>
-    <th>BMI</th>
-    <th>Risk</th>
-    <th>Probability</th>
-</tr>
+    <!-- HEADER -->
 
-{% for patient in patients %}
+    <div class="header">
 
-<tr>
-    <td>{{ patient.id }}</td>
-    <td>{{ patient.age }}</td>
-    <td>{{ patient.bmi }}</td>
-    <td>{{ patient.risk }}</td>
-    <td>{{ patient.probability }}%</td>
-</tr>
+        <div>
 
-{% endfor %}
+            <h1>👨‍⚕️ Doctor Dashboard</h1>
 
-</table>
+            <p>
+                Manage and review patient heart disease prediction records.
+            </p>
 
-<br>
+        </div>
 
-<a href="/logout">Logout</a>
+        <div class="doctor-badge">
+            ❤️ Heart Disease System
+        </div>
+
+    </div>
+
+
+    <!-- SEARCH -->
+
+    <div class="search-card">
+
+        <h2>🔎 Search Patients</h2>
+
+        <p>
+            Search patient records using patient ID, gender, or risk level.
+        </p>
+
+
+        <form method="GET"
+              action="{{ url_for('doctor_dashboard') }}"
+              class="search-form">
+
+
+            <input
+                type="text"
+                name="search"
+                class="search-input"
+                placeholder="Enter Patient ID or Gender..."
+                value="{{ search if search else '' }}"
+            >
+
+
+            <select name="risk"
+                    class="risk-select">
+
+                <option value="">
+                    All Risk Levels
+                </option>
+
+                <option value="High Risk"
+                    {% if risk == "High Risk" %}
+                        selected
+                    {% endif %}>
+                    High Risk
+                </option>
+
+                <option value="Low Risk"
+                    {% if risk == "Low Risk" %}
+                        selected
+                    {% endif %}>
+                    Low Risk
+                </option>
+
+            </select>
+
+
+            <button type="submit"
+                    class="search-button">
+                🔎 Search
+            </button>
+
+
+            <a href="{{ url_for('doctor_dashboard') }}"
+               class="clear-button">
+                Clear
+            </a>
+
+        </form>
+
+    </div>
+
+
+    <!-- PATIENT TABLE -->
+
+    <div class="table-card">
+
+
+        <div class="table-header">
+
+            <h2>Patient Records</h2>
+
+            <span class="patient-count">
+
+                {{ patients|length }} Patient(s)
+
+            </span>
+
+        </div>
+
+
+        {% if patients %}
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>ID</th>
+
+                        <th>Age</th>
+
+                        <th>Gender</th>
+
+                        <th>BMI</th>
+
+                        <th>Blood Pressure</th>
+
+                        <th>Cholesterol</th>
+
+                        <th>Risk</th>
+
+                        <th>Probability</th>
+
+                        <th>Date</th>
+<th>Actions</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                {% for patient in patients %}
+
+                    <tr>
+
+                        <td>
+                            #{{ patient.id }}
+                        </td>
+
+
+                        <td>
+                            {{ patient.age }}
+                        </td>
+
+
+                        <td>
+                            {{ patient.gender }}
+                        </td>
+
+
+                        <td>
+                            {{ patient.bmi }}
+                        </td>
+
+
+                        <td>
+                            {{ patient.systolic }}/{{ patient.diastolic }}
+                        </td>
+
+
+                        <td>
+                            {{ patient.cholesterol }}
+                        </td>
+
+
+                        <td>
+
+                            {% if patient.risk == "High Risk" %}
+
+                                <span class="risk high-risk">
+                                    High Risk
+                                </span>
+
+                            {% else %}
+
+                                <span class="risk low-risk">
+                                    {{ patient.risk }}
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+                            {{ patient.probability }}%
+                        </td>
+
+
+                        <td>
+
+                            {% if patient.date %}
+
+                                {{ patient.date.strftime('%d %b %Y') }}
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+                        </td>
+                        <td>
+
+    <a
+        href="{{ url_for('medical_notes', patient_id=patient.id) }}"
+        class="notes-button"
+    >
+        📝 Medical Notes
+    </a>
+
+    <a
+    href="{{ url_for('prescription', patient_id=patient.id) }}"
+    class="prescription-button"
+>
+    💊 Prescription
+</a>
+
+</td>
+
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        {% else %}
+
+
+        <div class="empty">
+
+            <div class="empty-icon">
+                🔍
+            </div>
+
+            <h3>No Patients Found</h3>
+
+            <p>
+                Try changing your search criteria.
+            </p>
+
+        </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- FOOTER -->
+
+    <div class="footer">
+
+        <a href="{{ url_for('logout') }}"
+           class="logout">
+
+            🚪 Logout
+
+        </a>
+
+    </div>
+
+
+</div>
 
 </body>
+
 </html>

@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Medical Notes | Doctor Dashboard</title>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+
+            background: #071120;
+
+            color: white;
+
+            font-family:
+                "Segoe UI",
+                Arial,
+                sans-serif;
+
+            min-height: 100vh;
+        }
+
+
+        .container {
+
+            width: 100%;
+
+            padding: 30px;
+        }
+
+
+        /* HEADER */
+
+        .header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 30px;
+        }
+
+
+        .header h1 {
+
+            font-size: 30px;
+
+            margin-bottom: 8px;
+        }
+
+
+        .header p {
+
+            color: #94a3b8;
+
+            font-size: 14px;
+        }
+
+
+        .doctor-badge {
+
+            background: #0f172a;
+
+            border: 1px solid #1e293b;
+
+            padding: 12px 18px;
+
+            border-radius: 10px;
+
+            color: #5eead4;
+
+            font-weight: 600;
+        }
+
+
+        /* BACK BUTTON */
+
+        .back-button {
+
+            display: inline-block;
+
+            text-decoration: none;
+
+            background: #334155;
+
+            color: white;
+
+            padding: 10px 18px;
+
+            border-radius: 8px;
+
+            margin-bottom: 25px;
+
+            font-weight: 600;
+        }
+
+
+        .back-button:hover {
+
+            background: #475569;
+        }
+
+
+        /* PATIENT CARD */
+
+        .patient-card {
+
+            background: #0f172a;
+
+            border: 1px solid #1e293b;
+
+            border-radius: 16px;
+
+            padding: 25px;
+
+            margin-bottom: 25px;
+        }
+
+
+        .patient-card h2 {
+
+            font-size: 21px;
+
+            margin-bottom: 20px;
+        }
+
+
+        .patient-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(5, 1fr);
+
+            gap: 15px;
+        }
+
+
+        .patient-info {
+
+            background: #071120;
+
+            border: 1px solid #1e293b;
+
+            border-radius: 10px;
+
+            padding: 15px;
+        }
+
+
+        .patient-info span {
+
+            display: block;
+
+            color: #64748b;
+
+            font-size: 12px;
+
+            margin-bottom: 7px;
+        }
+
+
+        .patient-info strong {
+
+            color: #e2e8f0;
+
+            font-size: 15px;
+        }
+
+
+        /* NOTE FORM */
+
+        .note-card {
+
+            background: #0f172a;
+
+            border: 1px solid #1e293b;
+
+            border-radius: 16px;
+
+            padding: 25px;
+
+            margin-bottom: 25px;
+        }
+
+
+        .note-card h2 {
+
+            font-size: 21px;
+
+            margin-bottom: 8px;
+        }
+
+
+        .note-card p {
+
+            color: #94a3b8;
+
+            font-size: 14px;
+
+            margin-bottom: 20px;
+        }
+
+
+        textarea {
+
+            width: 100%;
+
+            min-height: 180px;
+
+            resize: vertical;
+
+            background: #071120;
+
+            color: white;
+
+            border: 1px solid #334155;
+
+            border-radius: 10px;
+
+            padding: 15px;
+
+            font-family: inherit;
+
+            font-size: 14px;
+
+            outline: none;
+
+        }
+
+
+        textarea:focus {
+
+            border-color: #14b8a6;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(20,184,166,0.1);
+        }
+
+
+        .save-button {
+
+            margin-top: 15px;
+
+            background: #14b8a6;
+
+            color: white;
+
+            border: none;
+
+            padding: 13px 25px;
+
+            border-radius: 9px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            font-size: 14px;
+        }
+
+
+        .save-button:hover {
+
+            background: #0d9488;
+        }
+
+
+        /* ERROR */
+
+        .error {
+
+            background: #450a0a;
+
+            color: #fca5a5;
+
+            border: 1px solid #7f1d1d;
+
+            padding: 12px 15px;
+
+            border-radius: 8px;
+
+            margin-bottom: 15px;
+        }
+
+
+        /* NOTES */
+
+        .notes-card {
+
+            background: #0f172a;
+
+            border: 1px solid #1e293b;
+
+            border-radius: 16px;
+
+            overflow: hidden;
+        }
+
+
+        .notes-header {
+
+            padding: 22px 25px;
+
+            border-bottom:
+                1px solid #1e293b;
+        }
+
+
+        .notes-header h2 {
+
+            font-size: 21px;
+        }
+
+
+        .note {
+
+            padding: 22px 25px;
+
+            border-bottom:
+                1px solid #1e293b;
+        }
+
+
+        .note:last-child {
+
+            border-bottom: none;
+        }
+
+
+        .note-date {
+
+            color: #5eead4;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            margin-bottom: 10px;
+        }
+
+
+        .note-text {
+
+            color: #cbd5e1;
+
+            line-height: 1.7;
+
+            white-space: pre-wrap;
+        }
+
+
+        .no-notes {
+
+            padding: 45px 20px;
+
+            text-align: center;
+
+            color: #64748b;
+        }
+
+
+        .no-notes-icon {
+
+            font-size: 40px;
+
+            margin-bottom: 12px;
+        }
+
+
+        /* LOGOUT */
+
+        .footer {
+
+            margin-top: 25px;
+        }
+
+
+        .logout {
+
+            display: inline-block;
+
+            background: #dc2626;
+
+            color: white;
+
+            text-decoration: none;
+
+            padding: 11px 20px;
+
+            border-radius: 8px;
+
+            font-weight: 600;
+        }
+
+
+        .logout:hover {
+
+            background: #b91c1c;
+        }
+
+
+        /* RESPONSIVE */
+
+        @media(max-width: 900px) {
+
+            .patient-grid {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+        }
+
+
+        @media(max-width: 600px) {
+
+            .container {
+
+                padding: 20px;
+            }
+
+
+            .header {
+
+                flex-direction: column;
+
+                align-items: flex-start;
+
+                gap: 15px;
+            }
+
+
+            .patient-grid {
+
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <!-- HEADER -->
+
+    <div class="header">
+
+        <div>
+
+            <h1>📝 Medical Notes</h1>
+
+            <p>
+                Add and review clinical notes for this patient.
+            </p>
+
+        </div>
+
+
+        <div class="doctor-badge">
+
+            👨‍⚕️ Doctor Portal
+
+        </div>
+
+    </div>
+
+
+    <!-- BACK -->
+
+    <a href="{{ url_for('doctor_dashboard') }}"
+       class="back-button">
+
+        ← Back to Patient Dashboard
+
+    </a>
+
+
+    <!-- PATIENT INFORMATION -->
+
+    <div class="patient-card">
+
+        <h2>
+            👤 Patient #{{ patient.id }}
+        </h2>
+
+
+        <div class="patient-grid">
+
+
+            <div class="patient-info">
+
+                <span>Age</span>
+
+                <strong>
+                    {{ patient.age }}
+                </strong>
+
+            </div>
+
+
+            <div class="patient-info">
+
+                <span>Gender</span>
+
+                <strong>
+                    {{ patient.gender }}
+                </strong>
+
+            </div>
+
+
+            <div class="patient-info">
+
+                <span>BMI</span>
+
+                <strong>
+                    {{ patient.bmi }}
+                </strong>
+
+            </div>
+
+
+            <div class="patient-info">
+
+                <span>Blood Pressure</span>
+
+                <strong>
+                    {{ patient.systolic }}/{{ patient.diastolic }}
+                </strong>
+
+            </div>
+
+
+            <div class="patient-info">
+
+                <span>Risk</span>
+
+                <strong>
+                    {{ patient.risk }}
+                </strong>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+    <!-- ADD NOTE -->
+
+    <div class="note-card">
+
+        <h2>
+            ✍️ Add Medical Note
+        </h2>
+
+        <p>
+            Enter observations, assessment notes,
+            follow-up information, or other relevant
+            clinical documentation.
+        </p>
+
+
+        {% if error %}
+
+        <div class="error">
+
+            {{ error }}
+
+        </div>
+
+        {% endif %}
+
+
+        <form method="POST">
+
+            <textarea
+                name="note"
+                placeholder="Enter medical note here..."
+                required
+            ></textarea>
+
+
+            <button
+                type="submit"
+                class="save-button">
+
+                💾 Save Medical Note
+
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <!-- PREVIOUS NOTES -->
+
+    <div class="notes-card">
+
+
+        <div class="notes-header">
+
+            <h2>
+                📋 Previous Medical Notes
+            </h2>
+
+        </div>
+
+
+        {% if notes %}
+
+
+            {% for note in notes %}
+
+            <div class="note">
+
+
+                <div class="note-date">
+
+                    🕒
+
+                    {% if note.created_at %}
+
+                        {{ note.created_at.strftime(
+                            '%d %B %Y, %H:%M'
+                        ) }}
+
+                    {% else %}
+
+                        Date unavailable
+
+                    {% endif %}
+
+                </div>
+
+
+                <div class="note-text">
+
+                    {{ note.note }}
+
+                </div>
+
+
+            </div>
+
+            {% endfor %}
+
+
+        {% else %}
+
+
+            <div class="no-notes">
+
+                <div class="no-notes-icon">
+                    📝
+                </div>
+
+                <h3>
+                    No Medical Notes Yet
+                </h3>
+
+                <p>
+                    Add the first medical note for this patient.
+                </p>
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- FOOTER -->
+
+    <div class="footer">
+
+        <a href="{{ url_for('logout') }}"
+           class="logout">
+
+            🚪 Logout
+
+        </a>
+
+    </div>
+
+
+</div>
+
+
+</body>
+
+</html>
