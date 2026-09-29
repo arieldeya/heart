@@ -35,6 +35,19 @@ from werkzeug.security import (
     generate_password_hash,
     check_password_hash
 )
+from io import BytesIO
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle
+)
 
 
 # ==========================================
@@ -343,6 +356,399 @@ def medical_notes(patient_id):
         "medical_notes.html",
         patient=patient,
         notes=notes
+    )
+
+@app.route("/doctor/patient/<int:patient_id>/report")
+def medical_report(patient_id):
+
+    # Get patient
+    patient = Patient.query.get_or_404(patient_id)
+
+    # Get patient's medical notes
+    notes = MedicalNote.query.filter_by(
+        patient_id=patient.id
+    ).order_by(
+        MedicalNote.created_at.desc()
+    ).all()
+
+    # Get patient's prescriptions
+    prescriptions = Prescription.query.filter_by(
+        patient_id=patient.id
+    ).order_by(
+        Prescription.created_at.desc()
+    ).all()
+
+    # Display medical report
+    return render_template(
+        "medical_report.html",
+        patient=patient,
+        notes=notes,
+        prescriptions=prescriptions
+    )
+
+@app.route("/doctor/patient/<int:patient_id>/report/pdf")
+def medical_report_pdf(patient_id):
+
+    # Get patient
+    patient = Patient.query.get_or_404(patient_id)
+
+    # Get medical notes
+    notes = MedicalNote.query.filter_by(
+        patient_id=patient.id
+    ).order_by(
+        MedicalNote.created_at.desc()
+    ).all()
+
+    # Get prescriptions
+    prescriptions = Prescription.query.filter_by(
+        patient_id=patient.id
+    ).order_by(
+        Prescription.created_at.desc()
+    ).all()
+
+    # Create PDF in memory
+    buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "ReportTitle",
+        parent=styles["Title"],
+        alignment=TA_CENTER,
+        fontSize=18,
+        spaceAfter=8
+    )
+
+    subtitle_style = ParagraphStyle(
+        "ReportSubtitle",
+        parent=styles["Normal"],
+        alignment=TA_CENTER,
+        fontSize=10,
+        textColor=colors.grey,
+        spaceAfter=20
+    )
+
+    heading_style = ParagraphStyle(
+        "SectionHeading",
+        parent=styles["Heading2"],
+        fontSize=13,
+        spaceBefore=15,
+        spaceAfter=8
+    )
+
+    normal_style = ParagraphStyle(
+        "NormalText",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=13
+    )
+
+    story = []
+
+    # ==========================================
+    # REPORT HEADER
+    # ==========================================
+
+    story.append(
+        Paragraph(
+            "HEART DISEASE PREDICTION SYSTEM",
+            title_style
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "Patient Medical Report",
+            subtitle_style
+        )
+    )
+
+    # ==========================================
+    # PATIENT INFORMATION
+    # ==========================================
+
+    story.append(
+        Paragraph(
+            "Patient Information",
+            heading_style
+        )
+    )
+
+    patient_data = [
+        ["Patient ID", str(patient.id),
+         "Date", str(patient.date)],
+
+        ["Age", str(patient.age),
+         "Gender", str(patient.gender)],
+
+        ["BMI", str(patient.bmi),
+         "Systolic BP", f"{patient.systolic} mmHg"],
+
+        ["Diastolic BP", f"{patient.diastolic} mmHg",
+         "Cholesterol", str(patient.cholesterol)]
+    ]
+
+    patient_table = Table(
+        patient_data,
+        colWidths=[90, 130, 90, 170]
+    )
+
+    patient_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#e5e7eb")),
+            ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#e5e7eb")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7)
+        ])
+    )
+
+    story.append(patient_table)
+
+    # ==========================================
+    # PREDICTION RESULT
+    # ==========================================
+
+    story.append(
+        Paragraph(
+            "Heart Disease Prediction",
+            heading_style
+        )
+    )
+
+    prediction_data = [
+        ["Risk Level", str(patient.risk)],
+        ["Prediction Probability", f"{patient.probability}%"]
+    ]
+
+    prediction_table = Table(
+        prediction_data,
+        colWidths=[180, 300]
+    )
+
+    prediction_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#e5e7eb")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8)
+        ])
+    )
+
+    story.append(prediction_table)
+
+    # ==========================================
+    # MEDICAL NOTES
+    # ==========================================
+
+    story.append(
+        Paragraph(
+            "Medical Notes",
+            heading_style
+        )
+    )
+
+    if notes:
+
+        for note in notes:
+
+            note_date = note.created_at.strftime(
+                "%d %B %Y, %H:%M"
+            )
+
+            story.append(
+                Paragraph(
+                    f"<b>{note_date}</b>",
+                    normal_style
+                )
+            )
+
+            story.append(
+                Paragraph(
+                    str(note.note),
+                    normal_style
+                )
+            )
+
+            story.append(Spacer(1, 8))
+
+    else:
+
+        story.append(
+            Paragraph(
+                "No medical notes have been recorded.",
+                normal_style
+            )
+        )
+
+    # ==========================================
+    # PRESCRIPTIONS
+    # ==========================================
+
+    story.append(
+        Paragraph(
+            "Prescriptions",
+            heading_style
+        )
+    )
+
+    if prescriptions:
+
+        prescription_data = [
+            [
+                "Medication",
+                "Dosage",
+                "Frequency",
+                "Duration"
+            ]
+        ]
+
+        for prescription in prescriptions:
+
+            prescription_data.append([
+                str(prescription.medication),
+                str(prescription.dosage),
+                str(prescription.frequency),
+                str(prescription.duration)
+            ])
+
+        prescription_table = Table(
+            prescription_data,
+            colWidths=[145, 105, 110, 100],
+            repeatRows=1
+        )
+
+        prescription_table.setStyle(
+            TableStyle([
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#164e63")
+                ),
+
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white
+                ),
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "FONTSIZE",
+                    (0, 0),
+                    (-1, -1),
+                    8
+                ),
+
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "TOP"
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                )
+            ])
+        )
+
+        story.append(prescription_table)
+
+    else:
+
+        story.append(
+            Paragraph(
+                "No prescriptions have been recorded.",
+                normal_style
+            )
+        )
+
+    # ==========================================
+    # FOOTER
+    # ==========================================
+
+    story.append(Spacer(1, 25))
+
+    story.append(
+        Paragraph(
+            "Generated by Heart Disease Prediction System",
+            ParagraphStyle(
+                "Footer",
+                parent=normal_style,
+                alignment=TA_CENTER,
+                textColor=colors.grey
+            )
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "For clinical review",
+            ParagraphStyle(
+                "Footer2",
+                parent=normal_style,
+                alignment=TA_CENTER,
+                textColor=colors.grey
+            )
+        )
+    )
+
+    # Build PDF
+    document.build(story)
+
+    # Return PDF
+    buffer.seek(0)
+
+    from flask import send_file
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f"medical_report_patient_{patient.id}.pdf",
+        mimetype="application/pdf"
     )
 
 # ==========================================

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Medical Report - {{ patient.id }}</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #07111f;
+            color: #e5e7eb;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .top-bar h1 {
+            color: #67e8f9;
+            font-size: 28px;
+        }
+
+        .back-button {
+            text-decoration: none;
+            background: #164e63;
+            color: #a5f3fc;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .back-button:hover {
+            background: #155e75;
+            color: white;
+        }
+
+        .report {
+            background: #0f1b2d;
+            border: 1px solid #1e3a4f;
+            border-radius: 14px;
+            padding: 30px;
+        }
+
+        .report-header {
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 25px;
+            margin-bottom: 25px;
+        }
+
+        .report-header h2 {
+            color: #67e8f9;
+            font-size: 25px;
+            margin-bottom: 8px;
+        }
+
+        .report-header p {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 28px;
+        }
+
+        .section-title {
+            color: #67e8f9;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .info-card {
+            background: #111f33;
+            border: 1px solid #243b53;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .label {
+            display: block;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .value {
+            color: #f8fafc;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .risk-box {
+            background: #111f33;
+            border: 1px solid #243b53;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .risk-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .probability {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .notes-box {
+            background: #111f33;
+            border: 1px solid #243b53;
+            border-radius: 10px;
+            padding: 18px;
+            min-height: 100px;
+        }
+
+        .note {
+            padding: 12px 0;
+            border-bottom: 1px solid #243b53;
+        }
+
+        .note:last-child {
+            border-bottom: none;
+        }
+
+        .note-text {
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .note-date {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 7px;
+        }
+
+        .prescription-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .prescription-table th,
+        .prescription-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #243b53;
+        }
+
+        .prescription-table th {
+            background: #164e63;
+            color: #cffafe;
+            font-size: 13px;
+        }
+
+        .prescription-table td {
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+
+        .empty {
+            color: #64748b;
+            font-style: italic;
+            padding: 15px 0;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        @media (max-width: 800px) {
+            body {
+                padding: 15px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .report {
+                padding: 20px;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .prescription-table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.print-button {
+    border: none;
+    background: #0f766e;
+    color: #ccfbf1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.print-button:hover {
+    background: #115e59;
+    color: white;
+}
+
+@media print {
+
+    body {
+        background: white;
+        color: black;
+        padding: 0;
+    }
+
+    .top-bar {
+        display: none;
+    }
+
+    .container {
+        max-width: 100%;
+        margin: 0;
+    }
+
+    .report {
+        background: white;
+        color: black;
+        border: none;
+        border-radius: 0;
+        padding: 20px;
+    }
+
+    .report-header {
+        border-bottom: 2px solid #333;
+    }
+
+    .report-header h2 {
+        color: black;
+    }
+
+    .report-header p {
+        color: #333;
+    }
+
+    .section-title {
+        color: black;
+        border-bottom: 1px solid #999;
+    }
+
+    .info-card,
+    .risk-box,
+    .notes-box {
+        background: white;
+        border: 1px solid #999;
+    }
+
+    .label {
+        color: #444;
+    }
+
+    .value {
+        color: black;
+    }
+
+    .risk-value {
+        color: black;
+    }
+
+    .probability {
+        color: #333;
+    }
+
+    .note-text {
+        color: black;
+    }
+
+    .note-date {
+        color: #555;
+    }
+
+    .prescription-table th {
+        background: #e5e7eb;
+        color: black;
+    }
+
+    .prescription-table td {
+        color: black;
+        border-bottom: 1px solid #999;
+    }
+
+    .footer {
+        color: #444;
+    }
+
+}
+        }
+
+        .download-button {
+    display: inline-block;
+    text-decoration: none;
+    background: #0f766e;
+    color: #ccfbf1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.download-button:hover {
+    background: #115e59;
+    color: white;
+}
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+
+    <h1>📋 Medical Report</h1>
+
+    <div class="top-actions">
+
+    <a
+        href="{{ url_for('medical_report_pdf', patient_id=patient.id) }}"
+        class="download-button"
+    >
+        📥 Download PDF
+    </a>
+
+    <button onclick="window.print()" class="print-button">
+        🖨️ Print
+    </button>
+
+    <a
+        href="{{ url_for('doctor_dashboard') }}"
+        class="back-button"
+    >
+        ← Back to Dashboard
+    </a>
+
+</div>
+
+</div>
+
+
+    <!-- REPORT -->
+    <div class="report">
+
+        <!-- REPORT HEADER -->
+        <div class="report-header">
+
+            <h2>Heart Disease Prediction System</h2>
+
+            <p>
+                Patient Medical Report
+            </p>
+
+        </div>
+
+
+        <!-- PATIENT INFORMATION -->
+        <div class="section">
+
+            <h3 class="section-title">
+                👤 Patient Information
+            </h3>
+
+            <div class="info-grid">
+
+                <div class="info-card">
+                    <span class="label">Patient ID</span>
+                    <span class="value">
+                        {{ patient.id }}
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">Age</span>
+                    <span class="value">
+                        {{ patient.age }}
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">Gender</span>
+                    <span class="value">
+                        {{ patient.gender }}
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">BMI</span>
+                    <span class="value">
+                        {{ patient.bmi }}
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">Systolic BP</span>
+                    <span class="value">
+                        {{ patient.systolic }} mmHg
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">Diastolic BP</span>
+                    <span class="value">
+                        {{ patient.diastolic }} mmHg
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">Cholesterol</span>
+                    <span class="value">
+                        {{ patient.cholesterol }}
+                    </span>
+                </div>
+
+                <div class="info-card">
+                    <span class="label">Prediction Date</span>
+                    <span class="value">
+                        {{ patient.date }}
+                    </span>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- PREDICTION RESULT -->
+        <div class="section">
+
+            <h3 class="section-title">
+                ❤️ Heart Disease Prediction
+            </h3>
+
+            <div class="risk-box">
+
+                <div class="risk-value">
+                    {{ patient.risk }}
+                </div>
+
+                <div class="probability">
+                    Prediction Probability:
+                    {{ patient.probability }}%
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- MEDICAL NOTES -->
+        <div class="section">
+
+            <h3 class="section-title">
+                📝 Medical Notes
+            </h3>
+
+            <div class="notes-box">
+
+                {% if notes %}
+
+                    {% for note in notes %}
+
+                        <div class="note">
+
+                            <div class="note-text">
+                                {{ note.note }}
+                            </div>
+
+                            <div class="note-date">
+                                {{ note.created_at.strftime('%d %B %Y, %H:%M') }}
+                            </div>
+
+                        </div>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <div class="empty">
+                        No medical notes have been recorded for this patient.
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <!-- PRESCRIPTIONS -->
+        <div class="section">
+
+            <h3 class="section-title">
+                💊 Prescriptions
+            </h3>
+
+            {% if prescriptions %}
+
+                <table class="prescription-table">
+
+                    <thead>
+                        <tr>
+                            <th>Medication</th>
+                            <th>Dosage</th>
+                            <th>Frequency</th>
+                            <th>Duration</th>
+                            <th>Instructions</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for prescription in prescriptions %}
+
+                        <tr>
+
+                            <td>
+                                {{ prescription.medication }}
+                            </td>
+
+                            <td>
+                                {{ prescription.dosage }}
+                            </td>
+
+                            <td>
+                                {{ prescription.frequency }}
+                            </td>
+
+                            <td>
+                                {{ prescription.duration }}
+                            </td>
+
+                            <td>
+                                {{ prescription.instructions or 'None' }}
+                            </td>
+
+                            <td>
+                                {{ prescription.created_at.strftime('%d %b %Y') }}
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            {% else %}
+
+                <div class="notes-box">
+
+                    <div class="empty">
+                        No prescriptions have been recorded for this patient.
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- FOOTER -->
+        <div class="footer">
+
+            <span>
+                Generated by Heart Disease Prediction System
+            </span>
+
+            <span>
+                For clinical review
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

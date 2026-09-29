@@ -327,6 +327,24 @@
                 width:100%;
             }
 
+            .report-button {
+    display: inline-block;
+    background: #164e63;
+    color: #67e8f9;
+    text-decoration: none;
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 5px;
+}
+
+.report-button:hover {
+    background: #155e75;
+    color: white;
+}
+
         }
 
     </style>
@@ -552,19 +570,30 @@
                         </td>
                         <td>
 
+    <div class="action-buttons">
+
     <a
         href="{{ url_for('medical_notes', patient_id=patient.id) }}"
         class="notes-button"
     >
-        📝 Medical Notes
+        📝 Notes
     </a>
 
     <a
-    href="{{ url_for('prescription', patient_id=patient.id) }}"
-    class="prescription-button"
->
-    💊 Prescription
-</a>
+        href="{{ url_for('prescription', patient_id=patient.id) }}"
+        class="prescription-button"
+    >
+        💊 Prescription
+    </a>
+
+    <a
+        href="{{ url_for('medical_report', patient_id=patient.id) }}"
+        class="report-button"
+    >
+        📋 Medical Report
+    </a>
+
+</div>
 
 </td>
 
