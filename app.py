@@ -16,11 +16,13 @@ from flask import (
     redirect,
     url_for,
     flash,
-    session
+    session,
+    send_file
 )
 
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy import text
 
 from flask_login import (
     LoginManager,
@@ -35,6 +37,7 @@ from werkzeug.security import (
     generate_password_hash,
     check_password_hash
 )
+
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -50,18 +53,18 @@ from reportlab.platypus import (
 )
 
 
-# ==========================================
+# ============================================================
 # FLASK APP SETUP
-# ==========================================
+# ============================================================
 
 app = Flask(__name__)
 
 app.secret_key = "heart_disease_secret_key"
 
 
-# ==========================================
+# ============================================================
 # DATABASE CONFIGURATION
-# ==========================================
+# ============================================================
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///patients.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -69,9 +72,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 
-# ==========================================
+# ============================================================
 # LOGIN MANAGER
-# ==========================================
+# ============================================================
 
 login_manager = LoginManager()
 
@@ -86,24 +89,30 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-# ==========================================
-# LOAD MODEL + SCALER
-# ==========================================
+# ============================================================
+# LOAD MACHINE LEARNING MODEL
+# ============================================================
 
 model = joblib.load("ensemble_model.pkl")
 
 scaler = joblib.load("scaler.pkl")
 
 
-# ==========================================
-# PATIENT DATABASE MODEL
-# ==========================================
+# ============================================================
+# PATIENT MODEL
+# ============================================================
 
 class Patient(db.Model):
 
     id = db.Column(
         db.Integer,
         primary_key=True
+    )
+
+    patient_code = db.Column(
+        db.String(50),
+        nullable=True,
+        index=True
     )
 
     age = db.Column(
@@ -144,9 +153,9 @@ class Patient(db.Model):
     )
 
 
-# ==========================================
-# MEDICAL NOTES DATABASE MODEL
-# ==========================================
+# ============================================================
+# MEDICAL NOTES MODEL
+# ============================================================
 
 class MedicalNote(db.Model):
 
@@ -179,9 +188,10 @@ class MedicalNote(db.Model):
         )
     )
 
-    # ==========================================
-# PRESCRIPTION DATABASE MODEL
-# ==========================================
+
+# ============================================================
+# PRESCRIPTION MODEL
+# ============================================================
 
 class Prescription(db.Model):
 
@@ -235,11 +245,14 @@ class Prescription(db.Model):
     )
 
 
-# ==========================================
-# USER DATABASE MODEL
-# ==========================================
+# ============================================================
+# USER MODEL
+# ============================================================
 
-class User(db.Model):
+class User(
+    UserMixin,
+    db.Model
+):
 
     id = db.Column(
         db.Integer,
@@ -252,29 +265,110 @@ class User(db.Model):
     )
 
     password = db.Column(
-        db.String(100)
+        db.String(255)
     )
 
     role = db.Column(
         db.String(50)
     )
 
+    # Links patient login account to patient records
+    patient_code = db.Column(
+        db.String(50),
+        nullable=True,
+        index=True
+    )
 
-# ==========================================
-# CREATE DATABASE
-# ==========================================
+
+# ============================================================
+# CREATE DATABASE + SAFE MIGRATION
+# ============================================================
 
 with app.app_context():
 
     db.create_all()
 
-    # ==========================================
-    # CREATE DEFAULT USERS
-    # ==========================================
+    # --------------------------------------------------------
+    # Add patient_code to Patient table if missing
+    # --------------------------------------------------------
 
-    if not User.query.filter_by(
+    try:
+
+        columns = db.session.execute(
+            text("PRAGMA table_info(patient)")
+        ).fetchall()
+
+        column_names = [
+            column[1]
+            for column in columns
+        ]
+
+        if "patient_code" not in column_names:
+
+            db.session.execute(
+                text(
+                    "ALTER TABLE patient "
+                    "ADD COLUMN patient_code VARCHAR(50)"
+                )
+            )
+
+            db.session.commit()
+
+    except Exception as e:
+
+        print(
+            "Patient migration:",
+            repr(e)
+        )
+
+        db.session.rollback()
+
+
+    # --------------------------------------------------------
+    # Add patient_code to User table if missing
+    # --------------------------------------------------------
+
+    try:
+
+        columns = db.session.execute(
+            text("PRAGMA table_info(user)")
+        ).fetchall()
+
+        column_names = [
+            column[1]
+            for column in columns
+        ]
+
+        if "patient_code" not in column_names:
+
+            db.session.execute(
+                text(
+                    "ALTER TABLE user "
+                    "ADD COLUMN patient_code VARCHAR(50)"
+                )
+            )
+
+            db.session.commit()
+
+    except Exception as e:
+
+        print(
+            "User migration:",
+            repr(e)
+        )
+
+        db.session.rollback()
+
+
+    # --------------------------------------------------------
+    # Create default accounts
+    # --------------------------------------------------------
+
+    admin = User.query.filter_by(
         username="admin"
-    ).first():
+    ).first()
+
+    if not admin:
 
         admin = User(
             username="admin",
@@ -282,34 +376,107 @@ with app.app_context():
             role="admin"
         )
 
+        db.session.add(admin)
+
+
+    doctor = User.query.filter_by(
+        username="doctor"
+    ).first()
+
+    if not doctor:
+
         doctor = User(
             username="doctor",
             password="doctor123",
             role="doctor"
         )
 
-        patient = User(
+        db.session.add(doctor)
+
+
+    patient_user = User.query.filter_by(
+        username="patient"
+    ).first()
+
+    if not patient_user:
+
+        patient_user = User(
             username="patient",
             password="patient123",
-            role="patient"
+            role="patient",
+            patient_code="PATIENT-001"
         )
 
-        db.session.add(admin)
-        db.session.add(doctor)
-        db.session.add(patient)
+        db.session.add(patient_user)
 
-        db.session.commit()
+    else:
+
+        # Make sure existing patient account
+        # receives a patient code.
+        if not patient_user.patient_code:
+
+            patient_user.patient_code = "PATIENT-001"
 
 
-# ==========================================
+    db.session.commit()
+
+
+# ============================================================
+# ACCESS CONTROL HELPERS
+# ============================================================
+
+def require_role(role):
+
+    if "role" not in session:
+
+        return False
+
+    return session["role"] == role
+
+
+def patient_records_for_current_user():
+
+    if "patient_code" not in session:
+
+        return []
+
+    patient_code = session.get(
+        "patient_code"
+    )
+
+    if not patient_code:
+
+        return []
+
+    return Patient.query.filter_by(
+        patient_code=patient_code
+    ).order_by(
+        Patient.date.desc()
+    ).all()
+
+
+# ============================================================
 # MEDICAL NOTES
-# ==========================================
+# ============================================================
 
 @app.route(
     "/doctor/patient/<int:patient_id>/notes",
     methods=["GET", "POST"]
 )
 def medical_notes(patient_id):
+
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+    if session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
+
+        return "Access Denied"
 
     patient = Patient.query.get_or_404(
         patient_id
@@ -335,7 +502,9 @@ def medical_notes(patient_id):
             note=note_text
         )
 
-        db.session.add(new_note)
+        db.session.add(
+            new_note
+        )
 
         db.session.commit()
 
@@ -358,27 +527,57 @@ def medical_notes(patient_id):
         notes=notes
     )
 
-@app.route("/doctor/patient/<int:patient_id>/report")
+
+# ============================================================
+# MEDICAL REPORT
+# ============================================================
+
+@app.route(
+    "/doctor/patient/<int:patient_id>/report"
+)
 def medical_report(patient_id):
 
-    # Get patient
-    patient = Patient.query.get_or_404(patient_id)
+    if "role" not in session:
 
-    # Get patient's medical notes
+        return redirect(
+            "/login"
+        )
+
+    patient = Patient.query.get_or_404(
+        patient_id
+    )
+
+    # Patient can only view their own record
+    if session["role"] == "patient":
+
+        if patient.patient_code != session.get(
+            "patient_code"
+        ):
+
+            return "Access Denied"
+
+    elif session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
+
+        return "Access Denied"
+
+
     notes = MedicalNote.query.filter_by(
         patient_id=patient.id
     ).order_by(
         MedicalNote.created_at.desc()
     ).all()
 
-    # Get patient's prescriptions
+
     prescriptions = Prescription.query.filter_by(
         patient_id=patient.id
     ).order_by(
         Prescription.created_at.desc()
     ).all()
 
-    # Display medical report
+
     return render_template(
         "medical_report.html",
         patient=patient,
@@ -386,28 +585,119 @@ def medical_report(patient_id):
         prescriptions=prescriptions
     )
 
-@app.route("/doctor/patient/<int:patient_id>/report/pdf")
-def medical_report_pdf(patient_id):
 
-    # Get patient
-    patient = Patient.query.get_or_404(patient_id)
+# ============================================================
+# PATIENT MEDICAL REPORT
+# ============================================================
 
-    # Get medical notes
+@app.route(
+    "/patient/report/<int:patient_id>"
+)
+def patient_report(patient_id):
+
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+    if session["role"] != "patient":
+
+        return "Access Denied"
+
+
+    patient = Patient.query.get_or_404(
+        patient_id
+    )
+
+
+    # SECURITY CHECK
+    if patient.patient_code != session.get(
+        "patient_code"
+    ):
+
+        return "Access Denied"
+
+
     notes = MedicalNote.query.filter_by(
         patient_id=patient.id
     ).order_by(
         MedicalNote.created_at.desc()
     ).all()
 
-    # Get prescriptions
+
     prescriptions = Prescription.query.filter_by(
         patient_id=patient.id
     ).order_by(
         Prescription.created_at.desc()
     ).all()
 
-    # Create PDF in memory
+
+    return render_template(
+        "medical_report.html",
+        patient=patient,
+        notes=notes,
+        prescriptions=prescriptions
+    )
+
+
+# ============================================================
+# MEDICAL REPORT PDF
+# ============================================================
+
+@app.route(
+    "/doctor/patient/<int:patient_id>/report/pdf"
+)
+def medical_report_pdf(patient_id):
+
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+
+    patient = Patient.query.get_or_404(
+        patient_id
+    )
+
+
+    # --------------------------------------------------------
+    # Security
+    # --------------------------------------------------------
+
+    if session["role"] == "patient":
+
+        if patient.patient_code != session.get(
+            "patient_code"
+        ):
+
+            return "Access Denied"
+
+    elif session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
+
+        return "Access Denied"
+
+
+    notes = MedicalNote.query.filter_by(
+        patient_id=patient.id
+    ).order_by(
+        MedicalNote.created_at.desc()
+    ).all()
+
+
+    prescriptions = Prescription.query.filter_by(
+        patient_id=patient.id
+    ).order_by(
+        Prescription.created_at.desc()
+    ).all()
+
+
     buffer = BytesIO()
+
 
     document = SimpleDocTemplate(
         buffer,
@@ -418,7 +708,9 @@ def medical_report_pdf(patient_id):
         bottomMargin=40
     )
 
+
     styles = getSampleStyleSheet()
+
 
     title_style = ParagraphStyle(
         "ReportTitle",
@@ -427,6 +719,7 @@ def medical_report_pdf(patient_id):
         fontSize=18,
         spaceAfter=8
     )
+
 
     subtitle_style = ParagraphStyle(
         "ReportSubtitle",
@@ -437,6 +730,7 @@ def medical_report_pdf(patient_id):
         spaceAfter=20
     )
 
+
     heading_style = ParagraphStyle(
         "SectionHeading",
         parent=styles["Heading2"],
@@ -445,6 +739,7 @@ def medical_report_pdf(patient_id):
         spaceAfter=8
     )
 
+
     normal_style = ParagraphStyle(
         "NormalText",
         parent=styles["Normal"],
@@ -452,11 +747,9 @@ def medical_report_pdf(patient_id):
         leading=13
     )
 
+
     story = []
 
-    # ==========================================
-    # REPORT HEADER
-    # ==========================================
 
     story.append(
         Paragraph(
@@ -465,6 +758,7 @@ def medical_report_pdf(patient_id):
         )
     )
 
+
     story.append(
         Paragraph(
             "Patient Medical Report",
@@ -472,9 +766,10 @@ def medical_report_pdf(patient_id):
         )
     )
 
-    # ==========================================
-    # PATIENT INFORMATION
-    # ==========================================
+
+    # --------------------------------------------------------
+    # Patient information
+    # --------------------------------------------------------
 
     story.append(
         Paragraph(
@@ -483,45 +778,137 @@ def medical_report_pdf(patient_id):
         )
     )
 
+
     patient_data = [
-        ["Patient ID", str(patient.id),
-         "Date", str(patient.date)],
 
-        ["Age", str(patient.age),
-         "Gender", str(patient.gender)],
+        [
+            "Patient ID",
+            str(patient.id),
+            "Patient Code",
+            str(patient.patient_code or "N/A")
+        ],
 
-        ["BMI", str(patient.bmi),
-         "Systolic BP", f"{patient.systolic} mmHg"],
+        [
+            "Date",
+            str(patient.date),
+            "Age",
+            str(patient.age)
+        ],
 
-        ["Diastolic BP", f"{patient.diastolic} mmHg",
-         "Cholesterol", str(patient.cholesterol)]
+        [
+            "Gender",
+            "Male" if patient.gender == 1 else "Female",
+            "BMI",
+            str(patient.bmi)
+        ],
+
+        [
+            "Systolic BP",
+            f"{patient.systolic} mmHg",
+            "Diastolic BP",
+            f"{patient.diastolic} mmHg"
+        ],
+
+        [
+            "Cholesterol",
+            str(patient.cholesterol),
+            "Risk",
+            str(patient.risk)
+        ]
+
     ]
+
 
     patient_table = Table(
         patient_data,
-        colWidths=[90, 130, 90, 170]
+        colWidths=[
+            90,
+            130,
+            90,
+            170
+        ]
     )
+
 
     patient_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#e5e7eb")),
-            ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#e5e7eb")),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 7),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 7)
+
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.HexColor("#e5e7eb")
+            ),
+
+            (
+                "BACKGROUND",
+                (2, 0),
+                (2, -1),
+                colors.HexColor("#e5e7eb")
+            ),
+
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+
+            (
+                "FONTNAME",
+                (0, 0),
+                (0, -1),
+                "Helvetica-Bold"
+            ),
+
+            (
+                "FONTNAME",
+                (2, 0),
+                (2, -1),
+                "Helvetica-Bold"
+            ),
+
+            (
+                "FONTSIZE",
+                (0, 0),
+                (-1, -1),
+                9
+            ),
+
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                7
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                7
+            )
+
         ])
     )
 
-    story.append(patient_table)
 
-    # ==========================================
-    # PREDICTION RESULT
-    # ==========================================
+    story.append(
+        patient_table
+    )
+
+
+    # --------------------------------------------------------
+    # Prediction
+    # --------------------------------------------------------
 
     story.append(
         Paragraph(
@@ -530,32 +917,89 @@ def medical_report_pdf(patient_id):
         )
     )
 
+
     prediction_data = [
-        ["Risk Level", str(patient.risk)],
-        ["Prediction Probability", f"{patient.probability}%"]
+
+        [
+            "Risk Level",
+            str(patient.risk)
+        ],
+
+        [
+            "Prediction Probability",
+            f"{patient.probability}%"
+        ]
+
     ]
+
 
     prediction_table = Table(
         prediction_data,
-        colWidths=[180, 300]
+        colWidths=[
+            180,
+            300
+        ]
     )
+
 
     prediction_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#e5e7eb")),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("TOPPADDING", (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8)
+
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.HexColor("#e5e7eb")
+            ),
+
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+
+            (
+                "FONTNAME",
+                (0, 0),
+                (0, -1),
+                "Helvetica-Bold"
+            ),
+
+            (
+                "FONTSIZE",
+                (0, 0),
+                (-1, -1),
+                10
+            ),
+
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            )
+
         ])
     )
 
-    story.append(prediction_table)
 
-    # ==========================================
-    # MEDICAL NOTES
-    # ==========================================
+    story.append(
+        prediction_table
+    )
+
+
+    # --------------------------------------------------------
+    # Medical notes
+    # --------------------------------------------------------
 
     story.append(
         Paragraph(
@@ -563,6 +1007,7 @@ def medical_report_pdf(patient_id):
             heading_style
         )
     )
+
 
     if notes:
 
@@ -586,7 +1031,12 @@ def medical_report_pdf(patient_id):
                 )
             )
 
-            story.append(Spacer(1, 8))
+            story.append(
+                Spacer(
+                    1,
+                    8
+                )
+            )
 
     else:
 
@@ -597,9 +1047,10 @@ def medical_report_pdf(patient_id):
             )
         )
 
-    # ==========================================
-    # PRESCRIPTIONS
-    # ==========================================
+
+    # --------------------------------------------------------
+    # Prescriptions
+    # --------------------------------------------------------
 
     story.append(
         Paragraph(
@@ -608,34 +1059,59 @@ def medical_report_pdf(patient_id):
         )
     )
 
+
     if prescriptions:
 
         prescription_data = [
+
             [
                 "Medication",
                 "Dosage",
                 "Frequency",
                 "Duration"
             ]
+
         ]
+
 
         for prescription in prescriptions:
 
             prescription_data.append([
-                str(prescription.medication),
-                str(prescription.dosage),
-                str(prescription.frequency),
-                str(prescription.duration)
+
+                str(
+                    prescription.medication
+                ),
+
+                str(
+                    prescription.dosage
+                ),
+
+                str(
+                    prescription.frequency
+                ),
+
+                str(
+                    prescription.duration
+                )
+
             ])
+
 
         prescription_table = Table(
             prescription_data,
-            colWidths=[145, 105, 110, 100],
+            colWidths=[
+                145,
+                105,
+                110,
+                100
+            ],
             repeatRows=1
         )
 
+
         prescription_table.setStyle(
             TableStyle([
+
                 (
                     "BACKGROUND",
                     (0, 0),
@@ -692,10 +1168,14 @@ def medical_report_pdf(patient_id):
                     (-1, -1),
                     7
                 )
+
             ])
         )
 
-        story.append(prescription_table)
+
+        story.append(
+            prescription_table
+        )
 
     else:
 
@@ -706,11 +1186,14 @@ def medical_report_pdf(patient_id):
             )
         )
 
-    # ==========================================
-    # FOOTER
-    # ==========================================
 
-    story.append(Spacer(1, 25))
+    story.append(
+        Spacer(
+            1,
+            25
+        )
+    )
+
 
     story.append(
         Paragraph(
@@ -724,6 +1207,7 @@ def medical_report_pdf(patient_id):
         )
     )
 
+
     story.append(
         Paragraph(
             "For clinical review",
@@ -736,24 +1220,28 @@ def medical_report_pdf(patient_id):
         )
     )
 
-    # Build PDF
-    document.build(story)
 
-    # Return PDF
+    document.build(
+        story
+    )
+
+
     buffer.seek(0)
 
-    from flask import send_file
 
     return send_file(
         buffer,
         as_attachment=True,
-        download_name=f"medical_report_patient_{patient.id}.pdf",
+        download_name=(
+            f"medical_report_patient_{patient.id}.pdf"
+        ),
         mimetype="application/pdf"
     )
 
-# ==========================================
+
+# ============================================================
 # PRESCRIPTIONS
-# ==========================================
+# ============================================================
 
 @app.route(
     "/doctor/patient/<int:patient_id>/prescription",
@@ -761,9 +1249,24 @@ def medical_report_pdf(patient_id):
 )
 def prescription(patient_id):
 
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+    if session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
+
+        return "Access Denied"
+
+
     patient = Patient.query.get_or_404(
         patient_id
     )
+
 
     if request.method == "POST":
 
@@ -792,10 +1295,6 @@ def prescription(patient_id):
             ""
         ).strip()
 
-
-        # ==========================================
-        # VALIDATION
-        # ==========================================
 
         if not medication:
 
@@ -853,10 +1352,6 @@ def prescription(patient_id):
             )
 
 
-        # ==========================================
-        # CREATE PRESCRIPTION
-        # ==========================================
-
         new_prescription = Prescription(
 
             patient_id=patient.id,
@@ -881,10 +1376,6 @@ def prescription(patient_id):
         db.session.commit()
 
 
-        # ==========================================
-        # REDIRECT
-        # ==========================================
-
         return redirect(
             url_for(
                 "prescription",
@@ -892,10 +1383,6 @@ def prescription(patient_id):
             )
         )
 
-
-    # ==========================================
-    # GET PRESCRIPTION HISTORY
-    # ==========================================
 
     prescriptions = Prescription.query.filter_by(
         patient_id=patient.id
@@ -906,16 +1393,14 @@ def prescription(patient_id):
 
     return render_template(
         "prescription.html",
-
         patient=patient,
-
         prescriptions=prescriptions
     )
 
 
-# ==========================================
+# ============================================================
 # HOME PAGE
-# ==========================================
+# ============================================================
 
 @app.route("/")
 def home():
@@ -925,9 +1410,9 @@ def home():
     )
 
 
-# ==========================================
+# ============================================================
 # HISTORY PAGE
-# ==========================================
+# ============================================================
 
 @app.route("/history")
 def history():
@@ -936,34 +1421,27 @@ def history():
         Patient.date.desc()
     ).all()
 
+
     return render_template(
         "history.html",
         patients=patients
     )
 
 
-# ==========================================
-# DASHBOARD PAGE
-# ==========================================
+# ============================================================
+# ANALYTICS DASHBOARD
+# ============================================================
 
 @app.route("/dashboard")
 def dashboard():
-
-    # Create static folder if missing
 
     if not os.path.exists("static"):
 
         os.makedirs("static")
 
 
-    # ==========================================
-    # FETCH DATA
-    # ==========================================
-
     patients = Patient.query.all()
 
-
-    # Prevent empty database errors
 
     if len(patients) == 0:
 
@@ -978,21 +1456,28 @@ def dashboard():
     ages = [
         p.age
         for p in patients
+        if p.age is not None
     ]
+
 
     bmi_values = [
         p.bmi
         for p in patients
+        if p.bmi is not None
     ]
+
 
     cholesterol_values = [
         p.cholesterol
         for p in patients
+        if p.cholesterol is not None
     ]
+
 
     probabilities = [
         p.probability
         for p in patients
+        if p.probability is not None
     ]
 
 
@@ -1006,18 +1491,25 @@ def dashboard():
     ).count()
 
 
-    # ==========================================
-    # RISK CHART
-    # ==========================================
+    # Risk chart
 
     plt.figure(
         figsize=(5, 4)
     )
 
     plt.bar(
-        ["High Risk", "Low Risk"],
-        [high_risk, low_risk],
-        color=["red", "green"]
+        [
+            "High Risk",
+            "Low Risk"
+        ],
+        [
+            high_risk,
+            low_risk
+        ],
+        color=[
+            "red",
+            "green"
+        ]
     )
 
     plt.title(
@@ -1031,153 +1523,145 @@ def dashboard():
     plt.close()
 
 
-    # ==========================================
-    # AGE CHART
-    # ==========================================
+    # Age chart
 
-    plt.figure(
-        figsize=(5, 4)
-    )
+    if ages:
 
-    plt.hist(
-        ages,
-        bins=10
-    )
+        plt.figure(
+            figsize=(5, 4)
+        )
 
-    plt.title(
-        "Age Distribution"
-    )
+        plt.hist(
+            ages,
+            bins=10
+        )
 
-    plt.xlabel(
-        "Age"
-    )
+        plt.title(
+            "Age Distribution"
+        )
 
-    plt.ylabel(
-        "Patients"
-    )
+        plt.xlabel(
+            "Age"
+        )
 
-    plt.savefig(
-        "static/age_chart.png"
-    )
+        plt.ylabel(
+            "Patients"
+        )
 
-    plt.close()
+        plt.savefig(
+            "static/age_chart.png"
+        )
 
-
-    # ==========================================
-    # BMI CHART
-    # ==========================================
-
-    plt.figure(
-        figsize=(5, 4)
-    )
-
-    plt.hist(
-        bmi_values,
-        bins=10
-    )
-
-    plt.title(
-        "BMI Distribution"
-    )
-
-    plt.xlabel(
-        "BMI"
-    )
-
-    plt.savefig(
-        "static/bmi_chart.png"
-    )
-
-    plt.close()
+        plt.close()
 
 
-    # ==========================================
-    # CHOLESTEROL CHART
-    # ==========================================
+    # BMI chart
 
-    plt.figure(
-        figsize=(5, 4)
-    )
+    if bmi_values:
 
-    plt.hist(
-        cholesterol_values,
-        bins=10
-    )
+        plt.figure(
+            figsize=(5, 4)
+        )
 
-    plt.title(
-        "Cholesterol Distribution"
-    )
+        plt.hist(
+            bmi_values,
+            bins=10
+        )
 
-    plt.xlabel(
-        "Cholesterol"
-    )
+        plt.title(
+            "BMI Distribution"
+        )
 
-    plt.savefig(
-        "static/cholesterol_chart.png"
-    )
+        plt.xlabel(
+            "BMI"
+        )
 
-    plt.close()
+        plt.savefig(
+            "static/bmi_chart.png"
+        )
+
+        plt.close()
 
 
-    # ==========================================
-    # HEATMAP
-    # ==========================================
+    # Cholesterol chart
+
+    if cholesterol_values:
+
+        plt.figure(
+            figsize=(5, 4)
+        )
+
+        plt.hist(
+            cholesterol_values,
+            bins=10
+        )
+
+        plt.title(
+            "Cholesterol Distribution"
+        )
+
+        plt.xlabel(
+            "Cholesterol"
+        )
+
+        plt.savefig(
+            "static/cholesterol_chart.png"
+        )
+
+        plt.close()
+
+
+    # Heatmap
 
     data = pd.DataFrame({
 
         "Age": ages,
 
-        "BMI": bmi_values,
+        "BMI": bmi_values[:len(ages)],
 
-        "Cholesterol": cholesterol_values,
+        "Cholesterol": cholesterol_values[:len(ages)],
 
-        "Probability": probabilities
+        "Probability": probabilities[:len(ages)]
 
     })
 
 
-    correlation = data.corr()
+    if len(data) > 1:
 
+        correlation = data.corr()
 
-    plt.figure(
-        figsize=(8, 6)
-    )
+        plt.figure(
+            figsize=(8, 6)
+        )
 
-    sns.heatmap(
-        correlation,
-        annot=True,
-        cmap="coolwarm"
-    )
+        sns.heatmap(
+            correlation,
+            annot=True,
+            cmap="coolwarm"
+        )
 
-    plt.title(
-        "Correlation Heatmap"
-    )
+        plt.title(
+            "Correlation Heatmap"
+        )
 
-    plt.savefig(
-        "static/heatmap.png"
-    )
+        plt.savefig(
+            "static/heatmap.png"
+        )
 
-    plt.close()
+        plt.close()
 
-
-    # ==========================================
-    # RETURN DASHBOARD
-    # ==========================================
 
     return render_template(
         "dashboard.html",
-
         total_patients=len(patients),
-
         high_risk=high_risk,
-
         low_risk=low_risk
     )
 
 
-# ==========================================
+# ============================================================
 # LOGIN
-# ==========================================
+# ============================================================
 
 @app.route(
     "/login",
@@ -1187,31 +1671,41 @@ def login():
 
     if request.method == "POST":
 
-        username = request.form[
-            "username"
-        ]
+        username = request.form.get(
+            "username",
+            ""
+        ).strip()
 
-        password = request.form[
-            "password"
-        ]
+        password = request.form.get(
+            "password",
+            ""
+        )
 
 
         user = User.query.filter_by(
-            username=username,
-            password=password
+            username=username
         ).first()
 
 
-        if user:
+        # ----------------------------------------------------
+        # Current project accounts use plaintext passwords.
+        # Keep compatibility with your existing database.
+        # ----------------------------------------------------
+
+        if user and user.password == password:
+
+            session.clear()
 
             session["user"] = user.username
 
             session["role"] = user.role
 
+            session["user_id"] = user.id
 
-            # ==================================
-            # ADMIN
-            # ==================================
+            session["patient_code"] = (
+                user.patient_code
+            )
+
 
             if user.role == "admin":
 
@@ -1220,20 +1714,12 @@ def login():
                 )
 
 
-            # ==================================
-            # DOCTOR
-            # ==================================
-
             elif user.role == "doctor":
 
                 return redirect(
                     "/doctor"
                 )
 
-
-            # ==================================
-            # PATIENT
-            # ==================================
 
             elif user.role == "patient":
 
@@ -1242,7 +1728,10 @@ def login():
                 )
 
 
-        return "Invalid Login"
+        return render_template(
+            "login.html",
+            error="Invalid username or password."
+        )
 
 
     return render_template(
@@ -1250,9 +1739,9 @@ def login():
     )
 
 
-# ==========================================
+# ============================================================
 # LOGOUT
-# ==========================================
+# ============================================================
 
 @app.route("/logout")
 def logout():
@@ -1264,12 +1753,156 @@ def logout():
     )
 
 
-# ==========================================
-# ADMIN DASHBOARD
-# ==========================================
-
 @app.route("/admin")
 def admin_dashboard():
+
+    # --------------------------------------------------
+    # ADMIN ACCESS CONTROL
+    # --------------------------------------------------
+
+    if "role" not in session:
+        return redirect("/login")
+
+    if session["role"] != "admin":
+        return "Access Denied"
+
+    # --------------------------------------------------
+    # GET ALL PATIENT RECORDS
+    # --------------------------------------------------
+
+    records = Patient.query.order_by(
+        Patient.date.desc()
+    ).all()
+
+    # --------------------------------------------------
+    # BASIC STATISTICS
+    # --------------------------------------------------
+
+    total_patients = len(records)
+
+    high_risk_count = len([
+        record for record in records
+        if record.risk == "High Risk"
+    ])
+
+    low_risk_count = len([
+        record for record in records
+        if record.risk == "Low Risk"
+    ])
+
+    # --------------------------------------------------
+    # AVERAGE RISK PROBABILITY
+    # --------------------------------------------------
+
+    probabilities = [
+        record.probability
+        for record in records
+        if record.probability is not None
+    ]
+
+    if probabilities:
+        average_probability = round(
+            sum(probabilities) / len(probabilities),
+            2
+        )
+    else:
+        average_probability = 0
+
+    # --------------------------------------------------
+    # RISK PERCENTAGES
+    # --------------------------------------------------
+
+    if total_patients > 0:
+
+        high_risk_percentage = round(
+            (high_risk_count / total_patients) * 100,
+            1
+        )
+
+        low_risk_percentage = round(
+            (low_risk_count / total_patients) * 100,
+            1
+        )
+
+    else:
+
+        high_risk_percentage = 0
+        low_risk_percentage = 0
+
+    # --------------------------------------------------
+    # RECENT PREDICTIONS
+    # --------------------------------------------------
+
+    recent_predictions = records[:10]
+
+    # --------------------------------------------------
+    # CHART DATA
+    # --------------------------------------------------
+
+    chart_labels = [
+        "High Risk",
+        "Low Risk"
+    ]
+
+    chart_values = [
+        high_risk_count,
+        low_risk_count
+    ]
+
+    # --------------------------------------------------
+    # UNIQUE PATIENT CODES
+    # --------------------------------------------------
+
+    unique_patient_codes = set()
+
+    for record in records:
+
+        if record.patient_code:
+            unique_patient_codes.add(
+                record.patient_code
+            )
+
+    unique_patient_count = len(
+        unique_patient_codes
+    )
+
+    # --------------------------------------------------
+    # RENDER ADMIN DASHBOARD
+    # --------------------------------------------------
+
+    return render_template(
+        "admin_dashboard.html",
+
+        records=records,
+
+        recent_predictions=recent_predictions,
+
+        total_patients=total_patients,
+
+        unique_patient_count=unique_patient_count,
+
+        high_risk_count=high_risk_count,
+
+        low_risk_count=low_risk_count,
+
+        average_probability=average_probability,
+
+        high_risk_percentage=high_risk_percentage,
+
+        low_risk_percentage=low_risk_percentage,
+
+        chart_labels=chart_labels,
+
+        chart_values=chart_values
+    )
+
+
+# ============================================================
+# DOCTOR DASHBOARD
+# ============================================================
+
+@app.route("/doctor")
+def doctor_dashboard():
 
     if "role" not in session:
 
@@ -1278,46 +1911,19 @@ def admin_dashboard():
         )
 
 
-    if session["role"] != "admin":
+    if session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
 
         return "Access Denied"
 
-
-    total_patients = Patient.query.count()
-
-
-    high_risk = Patient.query.filter_by(
-        risk="High Risk"
-    ).count()
-
-
-    low_risk = Patient.query.filter_by(
-        risk="Low Risk"
-    ).count()
-
-
-    return render_template(
-        "admin_dashboard.html",
-
-        total_patients=total_patients,
-
-        high_risk=high_risk,
-
-        low_risk=low_risk
-    )
-
-
-# ==========================================
-# DOCTOR DASHBOARD
-# ==========================================
-
-@app.route("/doctor")
-def doctor_dashboard():
 
     search = request.args.get(
         "search",
         ""
     ).strip()
+
 
     risk = request.args.get(
         "risk",
@@ -1328,10 +1934,6 @@ def doctor_dashboard():
     query = Patient.query
 
 
-    # ==========================================
-    # SEARCH BY PATIENT ID OR GENDER
-    # ==========================================
-
     if search:
 
         if search.isdigit():
@@ -1339,6 +1941,7 @@ def doctor_dashboard():
             query = query.filter(
                 db.or_(
                     Patient.id == int(search),
+
                     Patient.gender.ilike(
                         f"%{search}%"
                     )
@@ -1354,20 +1957,12 @@ def doctor_dashboard():
             )
 
 
-    # ==========================================
-    # FILTER BY RISK
-    # ==========================================
-
     if risk:
 
         query = query.filter(
             Patient.risk == risk
         )
 
-
-    # ==========================================
-    # NEWEST RECORDS FIRST
-    # ==========================================
 
     patients = query.order_by(
         Patient.date.desc()
@@ -1385,21 +1980,35 @@ def doctor_dashboard():
     )
 
 
-# ==========================================
-# DOCTOR SEARCH PATIENTS
-# ==========================================
+# ============================================================
+# DOCTOR SEARCH
+# ============================================================
 
 @app.route(
     "/doctor/search-patients"
 )
 def doctor_search_patients():
 
-    # Get search values from URL
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+
+    if session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
+
+        return "Access Denied"
+
 
     search = request.args.get(
         "search",
         ""
     ).strip()
+
 
     risk = request.args.get(
         "risk",
@@ -1407,14 +2016,8 @@ def doctor_search_patients():
     ).strip()
 
 
-    # Start with all patients
-
     query = Patient.query
 
-
-    # ==========================================
-    # SEARCH BY PATIENT ID OR GENDER
-    # ==========================================
 
     if search:
 
@@ -1439,20 +2042,12 @@ def doctor_search_patients():
             )
 
 
-    # ==========================================
-    # FILTER BY RISK
-    # ==========================================
-
     if risk:
 
         query = query.filter(
             Patient.risk == risk
         )
 
-
-    # ==========================================
-    # NEWEST PATIENTS FIRST
-    # ==========================================
 
     patients = query.order_by(
         Patient.date.desc()
@@ -1470,12 +2065,289 @@ def doctor_search_patients():
     )
 
 
-# ==========================================
-# PATIENT PORTAL
-# ==========================================
+# ============================================================
+# DOCTOR PATIENT HISTORY
+# ============================================================
+
+@app.route(
+    "/doctor/patient/<int:patient_id>/history"
+)
+def patient_history(patient_id):
+
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+
+    if session["role"] not in [
+        "doctor",
+        "admin"
+    ]:
+
+        return "Access Denied"
+
+
+    patient = Patient.query.get_or_404(
+        patient_id
+    )
+
+
+    if patient.patient_code:
+
+        history_records = Patient.query.filter_by(
+            patient_code=patient.patient_code
+        ).order_by(
+            Patient.date.desc()
+        ).all()
+
+    else:
+
+        history_records = [
+            patient
+        ]
+
+
+    chart_labels = []
+
+    chart_values = []
+
+
+    for record in reversed(
+        history_records
+    ):
+
+        chart_labels.append(
+
+            record.date.strftime(
+                "%d %b %Y"
+            )
+
+            if record.date
+
+            else "Unknown"
+
+        )
+
+
+        chart_values.append(
+            record.probability or 0
+        )
+
+
+    return render_template(
+        "patient_history.html",
+
+        patient=patient,
+
+        history=history_records,
+
+        chart_labels=chart_labels,
+
+        chart_values=chart_values
+    )
+
 
 @app.route("/patient")
 def patient_dashboard():
+
+    if "role" not in session:
+        return redirect("/login")
+
+    if session["role"] != "patient":
+        return "Access Denied"
+
+    patient_code = session.get("patient_code")
+
+    records = Patient.query.filter_by(
+        patient_code=patient_code
+    ).order_by(
+        Patient.date.desc()
+    ).all()
+
+    # --------------------------------------------------
+    # NO RECORDS
+    # --------------------------------------------------
+
+    if not records:
+        return render_template(
+            "patient_dashboard.html",
+            patient_code=patient_code,
+            records=[],
+            latest=None,
+            total_predictions=0,
+            high_risk_count=0,
+            low_risk_count=0,
+            average_probability=0,
+            chart_labels=[],
+            chart_values=[],
+            trend=[],
+            notes=[],
+            prescriptions=[]
+        )
+
+    # --------------------------------------------------
+    # LATEST PREDICTION
+    # --------------------------------------------------
+
+    latest = records[0]
+
+    # --------------------------------------------------
+    # TOTAL PREDICTIONS
+    # --------------------------------------------------
+
+    total_predictions = len(records)
+
+    # --------------------------------------------------
+    # HIGH / LOW RISK COUNTS
+    # --------------------------------------------------
+
+    high_risk_count = len([
+        record for record in records
+        if record.risk == "High Risk"
+    ])
+
+    low_risk_count = len([
+        record for record in records
+        if record.risk == "Low Risk"
+    ])
+
+    # --------------------------------------------------
+    # AVERAGE PROBABILITY
+    # --------------------------------------------------
+
+    probabilities = [
+        record.probability
+        for record in records
+        if record.probability is not None
+    ]
+
+    if probabilities:
+        average_probability = round(
+            sum(probabilities) / len(probabilities),
+            2
+        )
+    else:
+        average_probability = 0
+
+    # --------------------------------------------------
+    # CHART DATA
+    # --------------------------------------------------
+
+    chart_labels = []
+    chart_values = []
+
+    for record in reversed(records):
+
+        chart_labels.append(
+            record.date.strftime("%d %b")
+            if record.date
+            else "Unknown"
+        )
+
+        chart_values.append(
+            round(record.probability or 0, 2)
+        )
+
+    # --------------------------------------------------
+    # HEART RISK TREND
+    # --------------------------------------------------
+
+    trend = []
+
+    for record in reversed(records):
+
+        trend.append({
+            "label": (
+                record.date.strftime("%d %b")
+                if record.date
+                else "Unknown"
+            ),
+            "value": round(
+                record.probability or 0,
+                2
+            )
+        })
+
+    # --------------------------------------------------
+    # PATIENT IDs
+    # --------------------------------------------------
+
+    patient_ids = [
+        record.id
+        for record in records
+    ]
+
+    # --------------------------------------------------
+    # MEDICAL NOTES
+    # --------------------------------------------------
+
+    notes = []
+
+    if patient_ids:
+
+        notes = MedicalNote.query.filter(
+            MedicalNote.patient_id.in_(patient_ids)
+        ).order_by(
+            MedicalNote.created_at.desc()
+        ).limit(5).all()
+
+    # --------------------------------------------------
+    # PRESCRIPTIONS
+    # --------------------------------------------------
+
+    prescriptions = []
+
+    if patient_ids:
+
+        prescriptions = Prescription.query.filter(
+            Prescription.patient_id.in_(patient_ids)
+        ).order_by(
+            Prescription.created_at.desc()
+        ).limit(5).all()
+
+    # --------------------------------------------------
+    # RENDER DASHBOARD
+    # --------------------------------------------------
+
+    return render_template(
+        "patient_dashboard.html",
+
+        patient_code=patient_code,
+
+        records=records,
+
+        latest=latest,
+
+        total_predictions=total_predictions,
+
+        high_risk_count=high_risk_count,
+
+        low_risk_count=low_risk_count,
+
+        average_probability=average_probability,
+
+        chart_labels=chart_labels,
+
+        chart_values=chart_values,
+
+        trend=trend,
+
+        notes=notes,
+
+        prescriptions=prescriptions
+    )
+
+
+# ============================================================
+# PATIENT HISTORY
+# ============================================================
+
+@app.route(
+    "/patient/history"
+)
+def patient_history_portal():
 
     if "role" not in session:
 
@@ -1489,33 +2361,166 @@ def patient_dashboard():
         return "Access Denied"
 
 
-    return render_template(
-        "patient_dashboard.html"
+    patient_code = session.get(
+        "patient_code"
     )
 
 
-# ==========================================
+    records = Patient.query.filter_by(
+        patient_code=patient_code
+    ).order_by(
+        Patient.date.desc()
+    ).all()
+
+
+    return render_template(
+        "patient_history.html",
+
+        patient=records[0]
+        if records
+        else None,
+
+        history=records,
+
+        chart_labels=[
+            r.date.strftime("%d %b %Y")
+            if r.date
+            else "Unknown"
+            for r in reversed(records)
+        ],
+
+        chart_values=[
+            r.probability or 0
+            for r in reversed(records)
+        ]
+    )
+
+
+# ============================================================
+# PATIENT VIEW PRESCRIPTION
+# ============================================================
+
+@app.route(
+    "/patient/prescriptions"
+)
+def patient_prescriptions():
+
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+
+    if session["role"] != "patient":
+
+        return "Access Denied"
+
+
+    patient_code = session.get(
+        "patient_code"
+    )
+
+
+    records = Patient.query.filter_by(
+        patient_code=patient_code
+    ).all()
+
+
+    patient_ids = [
+        record.id
+        for record in records
+    ]
+
+
+    prescriptions = []
+
+
+    if patient_ids:
+
+        prescriptions = Prescription.query.filter(
+            Prescription.patient_id.in_(
+                patient_ids
+            )
+        ).order_by(
+            Prescription.created_at.desc()
+        ).all()
+
+
+    return render_template(
+        "patient_prescriptions.html",
+        prescriptions=prescriptions
+    )
+
+
+# ============================================================
+# PATIENT VIEW NOTES
+# ============================================================
+
+@app.route(
+    "/patient/notes"
+)
+def patient_notes():
+
+    if "role" not in session:
+
+        return redirect(
+            "/login"
+        )
+
+
+    if session["role"] != "patient":
+
+        return "Access Denied"
+
+
+    patient_code = session.get(
+        "patient_code"
+    )
+
+
+    records = Patient.query.filter_by(
+        patient_code=patient_code
+    ).all()
+
+
+    patient_ids = [
+        record.id
+        for record in records
+    ]
+
+
+    notes = []
+
+
+    if patient_ids:
+
+        notes = MedicalNote.query.filter(
+            MedicalNote.patient_id.in_(
+                patient_ids
+            )
+        ).order_by(
+            MedicalNote.created_at.desc()
+        ).all()
+
+
+    return render_template(
+        "patient_notes.html",
+        notes=notes
+    )
+
+
+# ============================================================
 # HEALTH RECOMMENDATIONS
-# ==========================================
+# ============================================================
 
 def get_health_recommendations(
     risk,
     probability
 ):
-    """
-    Generate general health recommendations
-    based on the predicted cardiovascular risk.
-
-    This is educational guidance and is not
-    a medical diagnosis.
-    """
 
     recommendations = []
 
-
-    # ==========================================
-    # HIGH RISK
-    # ==========================================
 
     if risk == "High Risk":
 
@@ -1544,10 +2549,6 @@ def get_health_recommendations(
         ]
 
 
-    # ==========================================
-    # LOW RISK
-    # ==========================================
-
     else:
 
         recommendations = [
@@ -1575,10 +2576,6 @@ def get_health_recommendations(
         ]
 
 
-    # ==========================================
-    # ADDITIONAL RECOMMENDATION
-    # ==========================================
-
     if probability >= 75:
 
         recommendations.insert(
@@ -1598,9 +2595,9 @@ def get_health_recommendations(
     return recommendations
 
 
-# ==========================================
-# PREDICTION ROUTE
-# ==========================================
+# ============================================================
+# PREDICTION
+# ============================================================
 
 @app.route(
     "/predict",
@@ -1610,173 +2607,470 @@ def predict():
 
     try:
 
-        # ==========================================
-        # GET INPUTS
-        # ==========================================
+        # ====================================================
+        # GET FORM VALUES
+        # ====================================================
 
-        features = [
+        age = float(
+            request.form["Age"]
+        )
 
-            float(
-                request.form["Age"]
-            ),
+        gender = float(
+            request.form["Gender"]
+        )
 
-            float(
-                request.form["Gender"]
-            ),
+        weight = float(
+            request.form["Weight"]
+        )
 
-            float(
-                request.form["Weight"]
-            ),
+        height = float(
+            request.form["Height"]
+        )
 
-            float(
-                request.form["Height"]
-            ),
+        bmi = float(
+            request.form["BMI"]
+        )
 
-            float(
-                request.form["BMI"]
-            ),
+        smoking = float(
+            request.form["Smoking"]
+        )
 
-            float(
-                request.form["Smoking"]
-            ),
+        alcohol = float(
+            request.form["Alcohol_Intake"]
+        )
 
-            float(
-                request.form["Alcohol_Intake"]
-            ),
+        physical_activity = float(
+            request.form["Physical_Activity"]
+        )
 
-            float(
-                request.form["Physical_Activity"]
-            ),
+        diet = float(
+            request.form["Diet"]
+        )
 
-            float(
-                request.form["Diet"]
-            ),
+        stress = float(
+            request.form["Stress_Level"]
+        )
 
-            float(
-                request.form["Stress_Level"]
-            ),
+        hypertension = float(
+            request.form["Hypertension"]
+        )
 
-            float(
-                request.form["Hypertension"]
-            ),
+        diabetes = float(
+            request.form["Diabetes"]
+        )
 
-            float(
-                request.form["Diabetes"]
-            ),
+        hyperlipidemia = float(
+            request.form["Hyperlipidemia"]
+        )
 
-            float(
-                request.form["Hyperlipidemia"]
-            ),
+        family_history = float(
+            request.form["Family_History"]
+        )
 
-            float(
-                request.form["Family_History"]
-            ),
+        previous_heart_attack = float(
+            request.form[
+                "Previous_Heart_Attack"
+            ]
+        )
 
-            float(
-                request.form["Systolic_BP"]
-            ),
+        systolic = float(
+            request.form["Systolic_BP"]
+        )
 
-            float(
-                request.form["Diastolic_BP"]
-            ),
+        diastolic = float(
+            request.form["Diastolic_BP"]
+        )
 
-            float(
-                request.form["Heart_Rate"]
-            ),
+        heart_rate = float(
+            request.form["Heart_Rate"]
+        )
 
-            float(
-                request.form["Blood_Sugar_Fasting"]
-            ),
+        blood_sugar = float(
+            request.form[
+                "Blood_Sugar_Fasting"
+            ]
+        )
 
-            float(
-                request.form["Cholesterol_Total"]
-            )
+        cholesterol = float(
+            request.form[
+                "Cholesterol_Total"
+            ]
+        )
+
+
+        # ====================================================
+        # CHECK FINITE NUMBERS
+        # ====================================================
+
+        values_to_check = [
+
+            age,
+            gender,
+            weight,
+            height,
+            bmi,
+            smoking,
+            alcohol,
+            physical_activity,
+            diet,
+            stress,
+            hypertension,
+            diabetes,
+            hyperlipidemia,
+            family_history,
+            previous_heart_attack,
+            systolic,
+            diastolic,
+            heart_rate,
+            blood_sugar,
+            cholesterol
 
         ]
 
 
-        # ==========================================
-        # CONVERT TO NUMPY ARRAY
-        # ==========================================
+        if not all(
+            np.isfinite(value)
+            for value in values_to_check
+        ):
+
+            raise ValueError(
+                "Please enter valid numeric values."
+            )
+
+
+        # ====================================================
+        # VALIDATION
+        # ====================================================
+
+        if not 1 <= age <= 120:
+
+            raise ValueError(
+                "Age must be between 1 and 120."
+            )
+
+
+        if not 1 <= weight <= 300:
+
+            raise ValueError(
+                "Weight must be between 1 and 300 kg."
+            )
+
+
+        if not 50 <= height <= 250:
+
+            raise ValueError(
+                "Height must be between 50 and 250 cm."
+            )
+
+
+        if not 10 <= bmi <= 70:
+
+            raise ValueError(
+                "BMI must be between 10 and 70."
+            )
+
+
+        binary_values = {
+
+            "Gender": gender,
+
+            "Smoking": smoking,
+
+            "Hypertension": hypertension,
+
+            "Diabetes": diabetes,
+
+            "Hyperlipidemia": hyperlipidemia,
+
+            "Family_History": family_history,
+
+            "Previous_Heart_Attack":
+                previous_heart_attack
+
+        }
+
+
+        for field_name, value in binary_values.items():
+
+            if value not in [0, 1]:
+
+                raise ValueError(
+                    f"{field_name} must be either 0 or 1."
+                )
+
+
+        if alcohol not in [
+            0,
+            1,
+            2,
+            3
+        ]:
+
+            raise ValueError(
+                "Alcohol Intake must be between 0 and 3."
+            )
+
+
+        if physical_activity not in [
+            0,
+            1,
+            2
+        ]:
+
+            raise ValueError(
+                "Physical Activity must be between 0 and 2."
+            )
+
+
+        if diet not in [
+            0,
+            1,
+            2
+        ]:
+
+            raise ValueError(
+                "Diet must be between 0 and 2."
+            )
+
+
+        if stress not in [
+            0,
+            1,
+            2
+        ]:
+
+            raise ValueError(
+                "Stress Level must be between 0 and 2."
+            )
+
+
+        if not 60 <= systolic <= 250:
+
+            raise ValueError(
+                "Systolic BP must be between 60 and 250."
+            )
+
+
+        if not 30 <= diastolic <= 150:
+
+            raise ValueError(
+                "Diastolic BP must be between 30 and 150."
+            )
+
+
+        if not 30 <= heart_rate <= 220:
+
+            raise ValueError(
+                "Heart Rate must be between 30 and 220."
+            )
+
+
+        if not 30 <= blood_sugar <= 600:
+
+            raise ValueError(
+                "Blood Sugar must be between 30 and 600."
+            )
+
+
+        if not 50 <= cholesterol <= 500:
+
+            raise ValueError(
+                "Cholesterol must be between 50 and 500."
+            )
+
+
+        # ====================================================
+        # MODEL FEATURES
+        # ====================================================
+
+        features = [
+
+            age,
+
+            gender,
+
+            weight,
+
+            height,
+
+            bmi,
+
+            smoking,
+
+            alcohol,
+
+            physical_activity,
+
+            diet,
+
+            stress,
+
+            hypertension,
+
+            diabetes,
+
+            hyperlipidemia,
+
+            family_history,
+
+            previous_heart_attack,
+
+            systolic,
+
+            diastolic,
+
+            heart_rate,
+
+            blood_sugar,
+
+            cholesterol
+
+        ]
+
 
         input_data = np.array(
-            [features]
+            [features],
+            dtype=float
         )
 
 
-        # ==========================================
-        # SCALE INPUT
-        # ==========================================
+        # ====================================================
+        # MODEL CHECK
+        # ====================================================
+
+        if hasattr(
+            scaler,
+            "n_features_in_"
+        ):
+
+            if len(features) != scaler.n_features_in_:
+
+                raise ValueError(
+
+                    f"Feature mismatch: application sent "
+                    f"{len(features)} features, but scaler expects "
+                    f"{scaler.n_features_in_}."
+
+                )
+
+
+        # ====================================================
+        # SCALE
+        # ====================================================
 
         input_scaled = scaler.transform(
             input_data
         )
 
 
-        # ==========================================
-        # MAKE PREDICTION
-        # ==========================================
+        # ====================================================
+        # PREDICT
+        # ====================================================
 
         prediction = model.predict(
             input_scaled
         )[0]
 
 
-        probability = model.predict_proba(
-            input_scaled
-        )[0][1] * 100
+        probability = None
 
 
-        probability = round(
-            probability,
-            2
-        )
+        if hasattr(
+            model,
+            "predict_proba"
+        ):
+
+            probability = (
+                model.predict_proba(
+                    input_scaled
+                )[0][1]
+                * 100
+            )
 
 
-        # ==========================================
-        # DETERMINE RISK
-        # ==========================================
+        # ====================================================
+        # RISK
+        # ====================================================
 
         if prediction == 1:
 
-            result = "High Risk"
+            risk = "High Risk"
 
         else:
 
-            result = "Low Risk"
+            risk = "Low Risk"
 
 
-        # ==========================================
-        # GENERATE HEALTH RECOMMENDATIONS
-        # ==========================================
+        # ====================================================
+        # RESULT TEXT
+        # ====================================================
 
-        recommendations = get_health_recommendations(
-            result,
-            probability
-        )
+        if probability is not None:
+
+            prediction_text = (
+
+                f"Prediction: {risk} | "
+                f"Heart Disease Probability: "
+                f"{probability:.2f}%"
+
+            )
+
+        else:
+
+            prediction_text = (
+
+                f"Prediction: {risk}"
+
+            )
 
 
-        # ==========================================
-        # SAVE TO DATABASE
-        # ==========================================
+        # ====================================================
+        # GET CURRENT PATIENT CODE
+        # ====================================================
+
+        patient_code = None
+
+
+        if session.get("role") == "patient":
+
+            patient_code = session.get(
+                "patient_code"
+            )
+
+
+        # ====================================================
+        # SAVE RESULT
+        # ====================================================
 
         patient = Patient(
 
-            age=features[0],
+            patient_code=patient_code,
 
-            gender=features[1],
+            age=float(age),
 
-            bmi=features[4],
+            gender=float(gender),
 
-            systolic=features[14],
+            bmi=float(bmi),
 
-            diastolic=features[15],
+            systolic=float(systolic),
 
-            cholesterol=features[18],
+            diastolic=float(diastolic),
 
-            risk=result,
+            cholesterol=float(cholesterol),
 
-            probability=probability
+            risk=risk,
+
+            probability=(
+
+                float(probability)
+
+                if probability is not None
+
+                else None
+
+            ),
+
+            date=datetime.now()
 
         )
 
@@ -1785,23 +3079,46 @@ def predict():
             patient
         )
 
-
         db.session.commit()
 
 
-        # ==========================================
-        # RETURN RESULT
-        # ==========================================
+        # ====================================================
+        # RECOMMENDATIONS
+        # ====================================================
+
+        recommendations = get_health_recommendations(
+
+            risk,
+
+            probability or 0
+
+        )
+
+
+        # ====================================================
+        # PATIENT REDIRECT
+        # ====================================================
+
+        if session.get("role") == "patient":
+
+            return redirect(
+                url_for(
+                    "patient_dashboard"
+                )
+            )
+
+
+        # ====================================================
+        # NORMAL RESULT
+        # ====================================================
 
         return render_template(
 
             "index.html",
 
-            prediction_text=(
-                f"{result} ({probability}%)"
-            ),
+            prediction_text=prediction_text,
 
-            risk=result,
+            risk=risk,
 
             probability=probability,
 
@@ -1810,26 +3127,65 @@ def predict():
         )
 
 
-    except Exception as e:
+    # ========================================================
+    # VALUE ERROR
+    # ========================================================
+
+    except ValueError as e:
+
+        print(
+            "VALUE ERROR:",
+            repr(e)
+        )
+
 
         return render_template(
 
             "index.html",
 
             prediction_text=(
-                f"Error: {str(e)}"
+                f"Processing error: {str(e)}"
             )
 
         )
 
 
-# ==========================================
+    # ========================================================
+    # OTHER ERROR
+    # ========================================================
+
+    except Exception as e:
+
+        print(
+            "PREDICTION ERROR:",
+            repr(e)
+        )
+
+
+        db.session.rollback()
+
+
+        return render_template(
+
+            "index.html",
+
+            prediction_text=(
+                f"Prediction error: {str(e)}"
+            )
+
+        )
+
+
+# ============================================================
 # RUN APPLICATION
-# ==========================================
+# ============================================================
 
 if __name__ == "__main__":
 
     app.run(
+
         debug=True,
+
         use_reloader=False
+
     )

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Medical Notes | HeartCare</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: #0f172a;
+            color: white;
+            padding: 25px 18px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 30px;
+        }
+
+        .nav-link {
+            display: block;
+            text-decoration: none;
+            color: #cbd5e1;
+            padding: 13px 15px;
+            margin-bottom: 7px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #1e293b;
+            color: white;
+        }
+
+        .nav-link.active {
+            background: #14b8a6;
+            color: white;
+        }
+
+        .logout {
+            margin-top: 30px;
+            color: #fca5a5;
+        }
+
+        /* =========================
+           MAIN CONTENT
+        ========================= */
+
+        .main {
+            margin-left: 250px;
+            padding: 35px;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: 32px;
+            color: #0f172a;
+        }
+
+        .header p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        /* =========================
+           NOTES CONTAINER
+        ========================= */
+
+        .notes-container {
+            max-width: 1000px;
+        }
+
+        .note-card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 18px;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.07);
+            border-left: 5px solid #14b8a6;
+        }
+
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .note-title {
+            font-size: 19px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .note-date {
+            font-size: 13px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .note-content {
+            line-height: 1.7;
+            color: #475569;
+            white-space: pre-line;
+        }
+
+        .empty-state {
+            background: white;
+            border-radius: 14px;
+            padding: 55px 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.07);
+        }
+
+        .empty-icon {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state h2 {
+            margin: 0 0 10px;
+            color: #0f172a;
+        }
+
+        .empty-state p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 11px 18px;
+            background: #14b8a6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+
+        .back-button:hover {
+            background: #0f766e;
+        }
+
+        /* =========================
+           MOBILE
+        ========================= */
+
+        @media (max-width: 768px) {
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .note-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- =========================
+         SIDEBAR
+    ========================= -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            ❤️ HeartCare
+        </div>
+
+        <div class="subtitle">
+            Patient Health Portal
+        </div>
+
+        <a href="{{ url_for('patient_dashboard') }}"
+           class="nav-link">
+            🏠 Dashboard
+        </a>
+
+        <a href="{{ url_for('home') }}"
+           class="nav-link">
+            🩺 New Prediction
+        </a>
+
+        <a href="{{ url_for('patient_history_portal') }}"
+           class="nav-link">
+            📊 My History
+        </a>
+
+        <a href="{{ url_for('patient_notes') }}"
+           class="nav-link active">
+            📝 Medical Notes
+        </a>
+
+        <a href="{{ url_for('patient_prescriptions') }}"
+           class="nav-link">
+            💊 Prescriptions
+        </a>
+
+        <a href="{{ url_for('logout') }}"
+           class="nav-link logout">
+            🚪 Logout
+        </a>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================= -->
+
+    <main class="main">
+
+        <div class="header">
+
+            <h1>Medical Notes</h1>
+
+            <p>
+                View medical notes and observations recorded by your healthcare provider.
+            </p>
+
+        </div>
+
+
+        <div class="notes-container">
+
+            {% if notes %}
+
+                {% for note in notes %}
+
+                    <div class="note-card">
+
+                        <div class="note-header">
+
+                            <div class="note-title">
+                                📝 Medical Note
+                            </div>
+
+                            <div class="note-date">
+
+                                {% if note.created_at %}
+                                    {{ note.created_at.strftime("%d %b %Y, %H:%M") }}
+                                {% else %}
+                                    Date unavailable
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                        <div class="note-content">
+
+                            {% if note.note %}
+                                {{ note.note }}
+                            {% elif note.content %}
+                                {{ note.content }}
+                            {% elif note.description %}
+                                {{ note.description }}
+                            {% else %}
+                                No note content available.
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📝
+                    </div>
+
+                    <h2>No Medical Notes</h2>
+
+                    <p>
+                        You currently have no medical notes recorded by your healthcare provider.
+                    </p>
+
+                    <a href="{{ url_for('patient_dashboard') }}"
+                       class="back-button">
+                        ← Back to Dashboard
+                    </a>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </main>
+
+</body>
+
+</html>

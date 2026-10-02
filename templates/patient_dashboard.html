@@ -1,49 +1,1937 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 
-<title>Patient Portal</title>
+    <meta charset="UTF-8">
 
-<style>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-body{
-    background:#071120;
-    color:white;
-    font-family:Segoe UI;
-    padding:40px;
-}
+    <title>Patient Dashboard | HeartCare</title>
 
-.card{
-    background:#0f172a;
-    padding:30px;
-    border-radius:20px;
-}
 
-</style>
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            color: #1e293b;
+        }
+
+
+        /* =========================
+           SIDEBAR
+        ========================= */
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+
+            width: 250px;
+            height: 100vh;
+
+            background: #0f172a;
+            color: white;
+
+            padding: 25px 18px;
+
+            overflow-y: auto;
+        }
+
+
+        .logo {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+
+        .logo h2 {
+            color: #14b8a6;
+            font-size: 24px;
+        }
+
+
+        .logo p {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+
+        .menu {
+            list-style: none;
+        }
+
+
+        .menu li {
+            margin-bottom: 8px;
+        }
+
+
+        .menu a {
+            display: block;
+
+            padding: 13px 15px;
+
+            color: #cbd5e1;
+
+            text-decoration: none;
+
+            border-radius: 8px;
+
+            transition: 0.2s;
+        }
+
+
+        .menu a:hover,
+        .menu a.active {
+            background: #134e4a;
+            color: white;
+        }
+
+
+        .logout {
+            position: absolute;
+
+            bottom: 25px;
+            left: 18px;
+            right: 18px;
+        }
+
+
+        .logout a {
+            display: block;
+
+            text-align: center;
+
+            background: #dc2626;
+
+            color: white;
+
+            padding: 12px;
+
+            border-radius: 8px;
+
+            text-decoration: none;
+
+            transition: 0.2s;
+        }
+
+
+        .logout a:hover {
+            background: #b91c1c;
+        }
+
+
+        /* =========================
+           MAIN
+        ========================= */
+
+        .main {
+            margin-left: 250px;
+            padding: 30px;
+        }
+
+
+        .topbar {
+            background: white;
+
+            padding: 22px 25px;
+
+            border-radius: 12px;
+
+            margin-bottom: 25px;
+
+            box-shadow:
+                0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+
+        .topbar h1 {
+            font-size: 27px;
+            margin-bottom: 5px;
+        }
+
+
+        .topbar p {
+            color: #64748b;
+        }
+
+
+        .patient-code {
+            display: inline-block;
+
+            margin-top: 10px;
+
+            padding: 6px 12px;
+
+            border-radius: 20px;
+
+            background: #ccfbf1;
+
+            color: #115e59;
+
+            font-size: 13px;
+
+            font-weight: bold;
+        }
+
+
+        /* =========================
+           CARDS
+        ========================= */
+
+        .stats {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 18px;
+
+            margin-bottom: 25px;
+        }
+
+
+        .stat-card {
+            background: white;
+
+            padding: 22px;
+
+            border-radius: 12px;
+
+            box-shadow:
+                0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+
+        .stat-card h4 {
+            color: #64748b;
+
+            font-size: 13px;
+
+            margin-bottom: 10px;
+        }
+
+
+        .stat-card .value {
+            font-size: 28px;
+
+            font-weight: bold;
+
+            color: #0f172a;
+        }
+
+
+        .stat-card .description {
+            color: #94a3b8;
+
+            font-size: 12px;
+
+            margin-top: 5px;
+        }
+
+
+        /* =========================
+           GRID
+        ========================= */
+
+        .grid {
+            display: grid;
+
+            grid-template-columns: 2fr 1fr;
+
+            gap: 20px;
+
+            margin-bottom: 25px;
+        }
+
+
+        .card {
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 22px;
+
+            box-shadow:
+                0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+
+        .card h2 {
+            font-size: 19px;
+
+            margin-bottom: 18px;
+        }
+
+
+        .card h3 {
+            font-size: 16px;
+
+            margin-bottom: 10px;
+        }
+
+
+        /* =========================
+           RISK STATUS
+        ========================= */
+
+        .risk-box {
+            text-align: center;
+
+            padding: 25px;
+
+            border-radius: 10px;
+
+            background: #f8fafc;
+        }
+
+
+        .risk-value {
+            font-size: 30px;
+
+            font-weight: bold;
+
+            margin: 10px 0;
+        }
+
+
+        .risk-low {
+            color: #16a34a;
+        }
+
+
+        .risk-high {
+            color: #dc2626;
+        }
+
+
+        .risk-unknown {
+            color: #64748b;
+        }
+
+
+        .probability {
+            color: #64748b;
+
+            font-size: 14px;
+        }
+
+
+        /* =========================
+           BUTTONS
+        ========================= */
+
+        .buttons {
+            display: flex;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+        }
+
+
+        .btn {
+            display: inline-block;
+
+            padding: 10px 15px;
+
+            border-radius: 7px;
+
+            text-decoration: none;
+
+            border: none;
+
+            cursor: pointer;
+
+            font-size: 14px;
+
+            transition: 0.2s;
+        }
+
+
+        .btn-primary {
+            background: #0f766e;
+
+            color: white;
+        }
+
+
+        .btn-primary:hover {
+            background: #115e59;
+        }
+
+
+        .btn-secondary {
+            background: #e2e8f0;
+
+            color: #1e293b;
+        }
+
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+
+        .btn-danger {
+            background: #dc2626;
+
+            color: white;
+        }
+
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+
+        /* =========================
+           TABLE
+        ========================= */
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+
+        table {
+            width: 100%;
+
+            border-collapse: collapse;
+        }
+
+
+        th {
+            text-align: left;
+
+            background: #f8fafc;
+
+            color: #475569;
+
+            font-size: 13px;
+
+            padding: 12px;
+
+            white-space: nowrap;
+        }
+
+
+        td {
+            padding: 12px;
+
+            border-top:
+                1px solid #e2e8f0;
+
+            font-size: 13px;
+
+            white-space: nowrap;
+        }
+
+
+        .badge {
+            display: inline-block;
+
+            padding: 5px 9px;
+
+            border-radius: 15px;
+
+            font-size: 11px;
+
+            font-weight: bold;
+        }
+
+
+        .badge-high {
+            background: #fee2e2;
+
+            color: #991b1b;
+        }
+
+
+        .badge-low {
+            background: #dcfce7;
+
+            color: #166534;
+        }
+
+
+        /* =========================
+           TREND
+        ========================= */
+
+        .trend-item {
+            margin-bottom: 15px;
+        }
+
+
+        .trend-header {
+            display: flex;
+
+            justify-content: space-between;
+
+            margin-bottom: 6px;
+
+            font-size: 13px;
+        }
+
+
+        .trend-bar {
+            height: 10px;
+
+            width: 100%;
+
+            background: #e2e8f0;
+
+            border-radius: 10px;
+
+            overflow: hidden;
+        }
+
+
+        .trend-fill {
+            height: 100%;
+
+            background: #14b8a6;
+
+            border-radius: 10px;
+
+            width: 0;
+
+            transition:
+                width 0.5s ease;
+        }
+
+
+        /* =========================
+           NOTES / PRESCRIPTIONS
+        ========================= */
+
+        .item {
+            padding: 15px;
+
+            border-left:
+                4px solid #14b8a6;
+
+            background: #f8fafc;
+
+            margin-bottom: 12px;
+
+            border-radius: 5px;
+        }
+
+
+        .item strong {
+            display: block;
+
+            margin-bottom: 5px;
+        }
+
+
+        .item small {
+            color: #64748b;
+        }
+
+
+        .empty {
+            text-align: center;
+
+            padding: 30px;
+
+            color: #94a3b8;
+        }
+
+
+        /* =========================
+           NOTICE
+        ========================= */
+
+        .notice {
+            background: #fffbeb;
+
+            border-left:
+                4px solid #f59e0b;
+
+            padding: 15px;
+
+            margin-bottom: 25px;
+
+            border-radius: 6px;
+
+            color: #78350f;
+
+            font-size: 13px;
+
+            line-height: 1.6;
+        }
+
+
+        /* =========================
+           MOBILE MENU BUTTON
+        ========================= */
+
+        .mobile-menu-button {
+            display: none;
+
+            background: #0f766e;
+
+            color: white;
+
+            border: none;
+
+            padding: 10px 15px;
+
+            border-radius: 7px;
+
+            cursor: pointer;
+
+            margin-bottom: 15px;
+
+            font-size: 14px;
+        }
+
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 1100px) {
+
+            .stats {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+
+        @media (max-width: 700px) {
+
+            .sidebar {
+                position: relative;
+
+                width: 100%;
+
+                height: auto;
+
+                padding: 20px;
+
+                overflow: visible;
+            }
+
+
+            .logo {
+                margin-bottom: 20px;
+            }
+
+
+            .logout {
+                position: relative;
+
+                left: auto;
+
+                right: auto;
+
+                bottom: auto;
+
+                margin-top: 20px;
+            }
+
+
+            .main {
+                margin-left: 0;
+
+                padding: 15px;
+            }
+
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+
+            .topbar h1 {
+                font-size: 22px;
+            }
+
+
+            .card {
+                padding: 17px;
+            }
+
+
+            .buttons {
+                flex-direction: column;
+            }
+
+
+            .btn {
+                text-align: center;
+            }
+
+        }
+
+    </style>
 
 </head>
 
+
 <body>
 
-<div class="card">
 
-<h1>Patient Portal</h1>
+<!-- ============================================================
+     SIDEBAR
+============================================================ -->
 
-<p>Welcome to your health portal.</p>
+<div class="sidebar">
 
-<p>You can now:</p>
 
-<ul>
-    <li>View Reports</li>
-    <li>Track Predictions</li>
-    <li>Monitor Heart Risk</li>
-</ul>
+    <div class="logo">
 
-<br>
+        <h2>
+            HeartCare
+        </h2>
 
-<a href="/logout">Logout</a>
+        <p>
+            Patient Health Portal
+        </p>
+
+    </div>
+
+
+    <ul class="menu">
+
+
+        <!-- DASHBOARD -->
+
+        <li>
+
+            <a
+                href="{{ url_for('patient_dashboard') }}"
+                class="active"
+            >
+                🏠 Dashboard
+            </a>
+
+        </li>
+
+
+        <!-- NEW PREDICTION -->
+
+        <li>
+
+            <a
+                href="{{ url_for('home') }}"
+            >
+                🩺 New Prediction
+            </a>
+
+        </li>
+
+
+        <!-- PATIENT HISTORY -->
+
+        <li>
+
+            <a
+                href="{{ url_for('patient_history_portal') }}"
+            >
+                📊 My History
+            </a>
+
+        </li>
+
+
+        {% if latest %}
+
+
+            <!-- MEDICAL REPORT -->
+
+            <li>
+
+                <a
+                    href="{{ url_for(
+                        'patient_report',
+                        patient_id=latest.id
+                    ) }}"
+                >
+                    📄 Medical Report
+                </a>
+
+            </li>
+
+
+        {% endif %}
+
+
+        <!-- MEDICAL NOTES -->
+
+        <li>
+
+            <a
+                href="{{ url_for('patient_notes') }}"
+            >
+                📝 Medical Notes
+            </a>
+
+        </li>
+
+
+        <!-- PRESCRIPTIONS -->
+
+        <li>
+
+            <a
+                href="{{ url_for('patient_prescriptions') }}"
+            >
+                💊 Prescriptions
+            </a>
+
+        </li>
+
+
+    </ul>
+
+
+    <!-- LOGOUT -->
+
+    <div class="logout">
+
+        <a
+            href="{{ url_for('logout') }}"
+        >
+            Logout
+        </a>
+
+    </div>
+
 
 </div>
+
+
+<!-- ============================================================
+     MAIN CONTENT
+============================================================ -->
+
+<div class="main">
+
+
+    <!-- ========================================================
+         TOP BAR
+    ========================================================= -->
+
+    <div class="topbar">
+
+
+        <h1>
+            Welcome to Your Health Portal
+        </h1>
+
+
+        <p>
+            Monitor your heart-health predictions,
+            reports and medical information.
+        </p>
+
+
+        {% if patient_code %}
+
+            <span class="patient-code">
+
+                Patient ID:
+                {{ patient_code }}
+
+            </span>
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- ========================================================
+         MEDICAL NOTICE
+    ========================================================= -->
+
+    <div class="notice">
+
+        <strong>
+            Important:
+        </strong>
+
+        This system provides machine-learning based
+        risk predictions for educational and
+        decision-support purposes.
+
+        It is not a substitute for professional
+        medical diagnosis or treatment.
+
+    </div>
+
+
+    <!-- ========================================================
+         STATISTICS
+    ========================================================= -->
+
+    <div class="stats">
+
+
+        <!-- TOTAL PREDICTIONS -->
+
+        <div class="stat-card">
+
+            <h4>
+                Total Predictions
+            </h4>
+
+
+            <div class="value">
+
+                {{ total_predictions }}
+
+            </div>
+
+
+            <div class="description">
+
+                Predictions recorded
+
+            </div>
+
+        </div>
+
+
+        <!-- HIGH RISK -->
+
+        <div class="stat-card">
+
+            <h4>
+                High Risk Results
+            </h4>
+
+
+            <div class="value">
+
+                {{ high_risk_count }}
+
+            </div>
+
+
+            <div class="description">
+
+                Higher-risk predictions
+
+            </div>
+
+        </div>
+
+
+        <!-- LOW RISK -->
+
+        <div class="stat-card">
+
+            <h4>
+                Low Risk Results
+            </h4>
+
+
+            <div class="value">
+
+                {{ low_risk_count }}
+
+            </div>
+
+
+            <div class="description">
+
+                Lower-risk predictions
+
+            </div>
+
+        </div>
+
+
+        <!-- AVERAGE -->
+
+        <div class="stat-card">
+
+            <h4>
+                Average Probability
+            </h4>
+
+
+            <div class="value">
+
+                {{ average_probability }}%
+
+            </div>
+
+
+            <div class="description">
+
+                Across your predictions
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- ========================================================
+         CURRENT STATUS + QUICK ACTIONS
+    ========================================================= -->
+
+    <div class="grid">
+
+
+        <!-- ====================================================
+             LATEST PREDICTION
+        ==================================================== -->
+
+        <div class="card">
+
+
+            <h2>
+                Latest Prediction
+            </h2>
+
+
+            {% if latest %}
+
+
+                <div class="risk-box">
+
+
+                    <h3>
+                        Latest Heart Disease Risk
+                    </h3>
+
+
+                    {% if latest.risk == "High Risk" %}
+
+
+                        <div class="risk-value risk-high">
+
+                            {{ latest.risk }}
+
+                        </div>
+
+
+                    {% elif latest.risk == "Low Risk" %}
+
+
+                        <div class="risk-value risk-low">
+
+                            {{ latest.risk }}
+
+                        </div>
+
+
+                    {% else %}
+
+
+                        <div class="risk-value risk-unknown">
+
+                            {{ latest.risk }}
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                    {% if latest.probability is not none %}
+
+
+                        <div class="probability">
+
+                            Prediction probability:
+
+                            <strong>
+
+                                {{
+                                    "%.2f"
+                                    | format(latest.probability)
+                                }}%
+
+                            </strong>
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                    <br>
+
+
+                    <div class="buttons">
+
+
+                        <!-- HISTORY -->
+
+                        <a
+                            href="{{ url_for(
+                                'patient_history_portal'
+                            ) }}"
+                            class="btn btn-primary"
+                        >
+                            View History
+                        </a>
+
+
+                        <!-- REPORT -->
+
+                        <a
+                            href="{{ url_for(
+                                'patient_report',
+                                patient_id=latest.id
+                            ) }}"
+                            class="btn btn-secondary"
+                        >
+                            View Report
+                        </a>
+
+
+                        <!-- PDF -->
+
+                        <a
+                            href="{{ url_for(
+                                'medical_report_pdf',
+                                patient_id=latest.id
+                            ) }}"
+                            class="btn btn-secondary"
+                        >
+                            Download PDF
+                        </a>
+
+
+                    </div>
+
+
+                </div>
+
+
+            {% else %}
+
+
+                <div class="empty">
+
+
+                    <h3>
+                        No prediction yet
+                    </h3>
+
+
+                    <p>
+                        You have not made a heart-disease
+                        prediction yet.
+                    </p>
+
+
+                    <br>
+
+
+                    <a
+                        href="{{ url_for('home') }}"
+                        class="btn btn-primary"
+                    >
+                        Make Your First Prediction
+                    </a>
+
+
+                </div>
+
+
+            {% endif %}
+
+
+        </div>
+
+
+        <!-- ====================================================
+             QUICK ACTIONS
+        ===================================================== -->
+
+        <div class="card">
+
+
+            <h2>
+                Quick Actions
+            </h2>
+
+
+            <div class="buttons">
+
+
+                <!-- NEW PREDICTION -->
+
+                <a
+                    href="{{ url_for('home') }}"
+                    class="btn btn-primary"
+                >
+                    🩺 New Prediction
+                </a>
+
+
+                {% if latest %}
+
+
+                    <!-- HISTORY -->
+
+                    <a
+                        href="{{ url_for(
+                            'patient_history_portal'
+                        ) }}"
+                        class="btn btn-secondary"
+                    >
+                        📊 Prediction History
+                    </a>
+
+
+                    <!-- REPORT -->
+
+                    <a
+                        href="{{ url_for(
+                            'patient_report',
+                            patient_id=latest.id
+                        ) }}"
+                        class="btn btn-secondary"
+                    >
+                        📄 Medical Report
+                    </a>
+
+
+                    <!-- PDF -->
+
+                    <a
+                        href="{{ url_for(
+                            'medical_report_pdf',
+                            patient_id=latest.id
+                        ) }}"
+                        class="btn btn-secondary"
+                    >
+                        📥 Download PDF
+                    </a>
+
+
+                {% endif %}
+
+
+            </div>
+
+
+            <br>
+
+
+            <h3>
+                Patient Information
+            </h3>
+
+
+            {% if latest %}
+
+
+                <p>
+                    <strong>
+                        Age:
+                    </strong>
+
+                    {{ latest.age }}
+                </p>
+
+
+                <p>
+                    <strong>
+                        Gender:
+                    </strong>
+
+
+                    {% if latest.gender == 1 %}
+
+                        Male
+
+                    {% elif latest.gender == 0 %}
+
+                        Female
+
+                    {% else %}
+
+                        Not specified
+
+                    {% endif %}
+
+                </p>
+
+
+                <p>
+                    <strong>
+                        BMI:
+                    </strong>
+
+                    {{ latest.bmi }}
+                </p>
+
+
+                <p>
+                    <strong>
+                        Blood Pressure:
+                    </strong>
+
+                    {{ latest.systolic }}
+                    /
+                    {{ latest.diastolic }}
+
+                </p>
+
+
+                <p>
+                    <strong>
+                        Cholesterol:
+                    </strong>
+
+                    {{ latest.cholesterol }}
+                </p>
+
+
+            {% else %}
+
+
+                <p
+                    style="color:#94a3b8;"
+                >
+                    Patient information will appear
+                    after your first prediction.
+                </p>
+
+
+            {% endif %}
+
+
+        </div>
+
+
+    </div>
+
+
+    <!-- ========================================================
+         RISK TREND
+    ========================================================= -->
+
+    <div
+        class="card"
+        style="margin-bottom:25px;"
+    >
+
+
+        <h2>
+            Heart Risk Trend
+        </h2>
+
+
+        {% if trend %}
+
+
+            {% for item in trend %}
+
+
+                <div class="trend-item">
+
+
+                    <div class="trend-header">
+
+
+                        <span>
+
+                            {{ item.label }}
+
+                        </span>
+
+
+                        <strong>
+
+                            {{ item.value }}%
+
+                        </strong>
+
+
+                    </div>
+
+
+                    <div class="trend-bar">
+
+
+                        <!--
+                            IMPORTANT:
+
+                            Do NOT use:
+
+                            style="width: {{ item.value }}%;"
+
+                            Instead, store the value in
+                            data-width and let JavaScript
+                            apply the CSS width.
+                        -->
+
+                        <div
+                            class="trend-fill"
+                            data-width="{{ item.value }}"
+                        ></div>
+
+
+                    </div>
+
+
+                </div>
+
+
+            {% endfor %}
+
+
+        {% else %}
+
+
+            <div class="empty">
+
+                No prediction trend available yet.
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- ========================================================
+         PREDICTION HISTORY
+    ========================================================= -->
+
+    <div
+        class="card"
+        style="margin-bottom:25px;"
+    >
+
+
+        <h2>
+            Prediction History
+        </h2>
+
+
+        {% if records %}
+
+
+            <div class="table-container">
+
+
+                <table>
+
+
+                    <thead>
+
+
+                        <tr>
+
+
+                            <th>
+                                Date
+                            </th>
+
+
+                            <th>
+                                Age
+                            </th>
+
+
+                            <th>
+                                BMI
+                            </th>
+
+
+                            <th>
+                                Blood Pressure
+                            </th>
+
+
+                            <th>
+                                Cholesterol
+                            </th>
+
+
+                            <th>
+                                Risk
+                            </th>
+
+
+                            <th>
+                                Probability
+                            </th>
+
+
+                            <th>
+                                Report
+                            </th>
+
+
+                        </tr>
+
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                        {% for record in records %}
+
+
+                            <tr>
+
+
+                                <td>
+
+
+                                    {% if record.date %}
+
+
+                                        {{
+                                            record.date.strftime(
+                                                "%d %b %Y %H:%M"
+                                            )
+                                        }}
+
+
+                                    {% else %}
+
+
+                                        —
+
+
+                                    {% endif %}
+
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ record.age }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ record.bmi }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ record.systolic }}
+                                    /
+                                    {{ record.diastolic }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ record.cholesterol }}
+
+                                </td>
+
+
+                                <td>
+
+
+                                    {% if record.risk == "High Risk" %}
+
+
+                                        <span
+                                            class="badge badge-high"
+                                        >
+                                            High Risk
+                                        </span>
+
+
+                                    {% else %}
+
+
+                                        <span
+                                            class="badge badge-low"
+                                        >
+                                            Low Risk
+                                        </span>
+
+
+                                    {% endif %}
+
+
+                                </td>
+
+
+                                <td>
+
+
+                                    {% if record.probability is not none %}
+
+
+                                        {{
+                                            "%.2f"
+                                            | format(record.probability)
+                                        }}%
+
+
+                                    {% else %}
+
+
+                                        —
+
+
+                                    {% endif %}
+
+
+                                </td>
+
+
+                                <td>
+
+
+                                    <a
+                                        href="{{ url_for(
+                                            'patient_report',
+                                            patient_id=record.id
+                                        ) }}"
+                                        class="btn btn-secondary"
+                                    >
+                                        View
+                                    </a>
+
+
+                                </td>
+
+
+                            </tr>
+
+
+                        {% endfor %}
+
+
+                    </tbody>
+
+
+                </table>
+
+
+            </div>
+
+
+        {% else %}
+
+
+            <div class="empty">
+
+                No prediction records found.
+
+            </div>
+
+
+        {% endif %}
+
+
+    </div>
+
+
+    <!-- ========================================================
+         MEDICAL NOTES + PRESCRIPTIONS
+    ========================================================= -->
+
+    <div class="grid">
+
+
+        <!-- ====================================================
+             MEDICAL NOTES
+        ===================================================== -->
+
+        <div class="card">
+
+
+            <h2>
+                Medical Notes
+            </h2>
+
+
+            {% if notes %}
+
+
+                {% for note in notes %}
+
+
+                    <div class="item">
+
+
+                        <strong>
+                            Medical Note
+                        </strong>
+
+
+                        <p>
+                            {{ note.note }}
+                        </p>
+
+
+                        {% if note.created_at %}
+
+
+                            <small>
+
+                                {{
+                                    note.created_at.strftime(
+                                        "%d %b %Y %H:%M"
+                                    )
+                                }}
+
+                            </small>
+
+
+                        {% endif %}
+
+
+                    </div>
+
+
+                {% endfor %}
+
+
+            {% else %}
+
+
+                <div class="empty">
+
+                    No medical notes available.
+
+                </div>
+
+
+            {% endif %}
+
+
+        </div>
+
+
+        <!-- ====================================================
+             PRESCRIPTIONS
+        ===================================================== -->
+
+        <div class="card">
+
+
+            <h2>
+                Prescriptions
+            </h2>
+
+
+            {% if prescriptions %}
+
+
+                {% for prescription in prescriptions %}
+
+
+                    <div class="item">
+
+
+                        <strong>
+
+                            {{ prescription.medication }}
+
+                        </strong>
+
+
+                        {% if prescription.dosage %}
+
+
+                            <p>
+
+                                <strong>
+                                    Dosage:
+                                </strong>
+
+                                {{ prescription.dosage }}
+
+                            </p>
+
+
+                        {% endif %}
+
+
+                        {% if prescription.frequency %}
+
+
+                            <p>
+
+                                <strong>
+                                    Frequency:
+                                </strong>
+
+                                {{ prescription.frequency }}
+
+                            </p>
+
+
+                        {% endif %}
+
+
+                        {% if prescription.duration %}
+
+
+                            <p>
+
+                                <strong>
+                                    Duration:
+                                </strong>
+
+                                {{ prescription.duration }}
+
+                            </p>
+
+
+                        {% endif %}
+
+
+                        {% if prescription.instructions %}
+
+
+                            <p>
+
+                                {{ prescription.instructions }}
+
+                            </p>
+
+
+                        {% endif %}
+
+
+                        {% if prescription.created_at %}
+
+
+                            <small>
+
+                                {{
+                                    prescription.created_at.strftime(
+                                        "%d %b %Y %H:%M"
+                                    )
+                                }}
+
+                            </small>
+
+
+                        {% endif %}
+
+
+                    </div>
+
+
+                {% endfor %}
+
+
+            {% else %}
+
+
+                <div class="empty">
+
+                    No prescriptions available.
+
+                </div>
+
+
+            {% endif %}
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+<!-- ============================================================
+     TREND BAR JAVASCRIPT
+============================================================ -->
+
+<script>
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+
+            const trendBars =
+                document.querySelectorAll(
+                    ".trend-fill"
+                );
+
+
+            trendBars.forEach(
+                function (bar) {
+
+
+                    const width =
+                        parseFloat(
+                            bar.dataset.width
+                        );
+
+
+                    if (!isNaN(width)) {
+
+
+                        const safeWidth =
+                            Math.min(
+                                Math.max(
+                                    width,
+                                    0
+                                ),
+                                100
+                            );
+
+
+                        bar.style.width =
+                            safeWidth + "%";
+
+                    }
+
+
+                }
+            );
+
+
+        }
+    );
+
+</script>
+
 
 </body>
 </html>

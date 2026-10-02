@@ -1,20 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>AI Heart Disease Dashboard</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial;
+            font-family: Arial, sans-serif;
             background: linear-gradient(to right, #141e30, #243b55);
             margin: 0;
-            padding: 0;
+            padding: 0 0 40px 0;
         }
 
         .dashboard {
             width: 80%;
-            margin: auto;
-            margin-top: 30px;
+            max-width: 1200px;
+            margin: 30px auto;
             background: white;
             padding: 25px;
             border-radius: 15px;
@@ -32,12 +43,25 @@
             gap: 10px;
         }
 
-        input, select {
+        input,
+        select {
             padding: 10px;
             width: 95%;
             margin: 5px;
             border-radius: 5px;
             border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 4px rgba(26,115,232,0.3);
+        }
+
+        input:invalid {
+            border-color: #dc3545;
         }
 
         button {
@@ -82,244 +106,998 @@
         }
 
         /* ============================================
-   HEALTH RECOMMENDATIONS
-============================================ */
+           VALIDATION HELP
+        ============================================ */
 
-.recommendations-card {
-    margin-top: 30px;
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e5e7eb;
-}
+        .field-group {
+            width: 100%;
+        }
 
-.recommendations-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 25px;
-}
+        .field-help {
+            display: block;
+            color: #6b7280;
+            font-size: 11px;
+            margin-left: 8px;
+            margin-bottom: 3px;
+        }
 
-.recommendations-header h2 {
-    margin: 0;
-    font-size: 24px;
-    color: #111827;
-}
+        /* ============================================
+           HEALTH RECOMMENDATIONS
+        ============================================ */
 
-.recommendations-header p {
-    margin-top: 8px;
-    color: #6b7280;
-    font-size: 14px;
-}
+        .recommendations-card {
+            margin-top: 30px;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+        }
 
-/* Risk badge */
+        .recommendations-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
 
-.risk-badge {
-    padding: 10px 18px;
-    border-radius: 30px;
-    font-weight: 700;
-    font-size: 14px;
-    white-space: nowrap;
-}
+        .recommendations-header h2 {
+            margin: 0;
+            font-size: 24px;
+            color: #111827;
+        }
 
-.high-risk {
-    background: #fee2e2;
-    color: #b91c1c;
-}
+        .recommendations-header p {
+            margin-top: 8px;
+            color: #6b7280;
+            font-size: 14px;
+        }
 
-.low-risk {
-    background: #dcfce7;
-    color: #15803d;
-}
+        /* Risk badge */
 
-/* Recommendation list */
+        .risk-badge {
+            padding: 10px 18px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 14px;
+            white-space: nowrap;
+        }
 
-.recommendation-list {
-    display: grid;
-    gap: 12px;
-}
+        .high-risk {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
 
-.recommendation-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 15px;
-    padding: 15px;
-    background: #f8fafc;
-    border-radius: 12px;
-    color: #374151;
-    line-height: 1.5;
-}
+        .low-risk {
+            background: #dcfce7;
+            color: #15803d;
+        }
 
-.recommendation-icon {
-    min-width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #10b981;
-    color: white;
+        /* Recommendation list */
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+        .recommendation-list {
+            display: grid;
+            gap: 12px;
+        }
 
-    font-weight: bold;
-}
+        .recommendation-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 12px;
+            color: #374151;
+            line-height: 1.5;
+        }
 
-/* Medical notice */
+        .recommendation-icon {
+            min-width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #10b981;
+            color: white;
 
-.medical-notice {
-    margin-top: 25px;
-    padding: 15px 18px;
-    background: #fff7ed;
-    border-left: 4px solid #f97316;
-    border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
 
-    color: #7c2d12;
-    font-size: 13px;
-    line-height: 1.6;
-}
+            font-weight: bold;
+        }
+
+        /* Medical notice */
+
+        .medical-notice {
+            margin-top: 25px;
+            padding: 15px 18px;
+            background: #fff7ed;
+            border-left: 4px solid #f97316;
+            border-radius: 8px;
+
+            color: #7c2d12;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           DASHBOARD LINK
+        ============================================ */
+
+        .dashboard-link {
+            display: block;
+            width: fit-content;
+            margin: 20px auto;
+            padding: 12px 20px;
+            background: #164e63;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .dashboard-link:hover {
+            background: #0e7490;
+        }
+
+        /* ============================================
+           RESPONSIVE
+        ============================================ */
+
+        @media (max-width: 800px) {
+
+            .dashboard {
+                width: 94%;
+                padding: 18px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            input,
+            select {
+                width: 100%;
+                margin: 5px 0;
+            }
+
+            .recommendations-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+        }
+
     </style>
+
 </head>
+
 
 <body>
 
-<h2 class="header">🫀 AI Heart Disease Prediction System</h2>
+<h2 class="header">
+    🫀 AI Heart Disease Prediction System
+</h2>
+
 
 <div class="dashboard">
 
-    <form action="/predict" method="POST">
+
+    <!-- ============================================
+         PREDICTION FORM
+    ============================================= -->
+
+    <form action="/predict" method="POST" id="predictionForm">
 
         <div class="grid">
 
-            <input name="Age" placeholder="Age" required>
-            <select name="Gender">
-                <option value="1">Male</option>
-                <option value="0">Female</option>
+
+            <!-- AGE -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Age"
+                    placeholder="Age"
+                    min="1"
+                    max="120"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Age: 1 - 120 years
+                </span>
+
+            </div>
+
+
+            <!-- GENDER -->
+
+            <select name="Gender" required>
+
+                <option value="1">
+                    Male
+                </option>
+
+                <option value="0">
+                    Female
+                </option>
+
             </select>
 
-            <input name="Weight" placeholder="Weight" required>
-            <input name="Height" placeholder="Height" required>
 
-            <input name="BMI" placeholder="BMI" required>
+            <!-- WEIGHT -->
 
-            <select name="Smoking">
-                <option value="0">Non-Smoker</option>
-                <option value="1">Smoker</option>
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Weight"
+                    placeholder="Weight (kg)"
+                    min="1"
+                    max="300"
+                    step="0.1"
+                    required
+                >
+
+                <span class="field-help">
+                    Weight: 1 - 300 kg
+                </span>
+
+            </div>
+
+
+            <!-- HEIGHT -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Height"
+                    placeholder="Height (cm)"
+                    min="50"
+                    max="250"
+                    step="0.1"
+                    required
+                >
+
+                <span class="field-help">
+                    Height: 50 - 250 cm
+                </span>
+
+            </div>
+
+
+            <!-- BMI -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="BMI"
+                    placeholder="BMI"
+                    min="10"
+                    max="70"
+                    step="0.1"
+                    required
+                >
+
+                <span class="field-help">
+                    BMI: 10 - 70
+                </span>
+
+            </div>
+
+
+            <!-- SMOKING -->
+
+            <select name="Smoking" required>
+
+                <option value="0">
+                    Non-Smoker
+                </option>
+
+                <option value="1">
+                    Smoker
+                </option>
+
             </select>
 
-            <select name="Alcohol_Intake">
-                <option value="0">None</option>
-                <option value="1">Low</option>
-                <option value="2">Moderate</option>
-                <option value="3">High</option>
+
+            <!-- ALCOHOL -->
+
+            <select name="Alcohol_Intake" required>
+
+                <option value="0">
+                    None
+                </option>
+
+                <option value="1">
+                    Low
+                </option>
+
+                <option value="2">
+                    Moderate
+                </option>
+
+                <option value="3">
+                    High
+                </option>
+
             </select>
 
-            <select name="Physical_Activity">
-                <option value="0">Sedentary</option>
-                <option value="1">Moderate</option>
-                <option value="2">Active</option>
+
+            <!-- PHYSICAL ACTIVITY -->
+
+            <select name="Physical_Activity" required>
+
+                <option value="0">
+                    Sedentary
+                </option>
+
+                <option value="1">
+                    Moderate
+                </option>
+
+                <option value="2">
+                    Active
+                </option>
+
             </select>
 
-            <select name="Diet">
-                <option value="0">Unhealthy</option>
-                <option value="1">Average</option>
-                <option value="2">Healthy</option>
+
+            <!-- DIET -->
+
+            <select name="Diet" required>
+
+                <option value="0">
+                    Unhealthy
+                </option>
+
+                <option value="1">
+                    Average
+                </option>
+
+                <option value="2">
+                    Healthy
+                </option>
+
             </select>
 
-            <select name="Stress_Level">
-                <option value="0">Low</option>
-                <option value="1">Medium</option>
-                <option value="2">High</option>
+
+            <!-- STRESS -->
+
+            <select name="Stress_Level" required>
+
+                <option value="0">
+                    Low
+                </option>
+
+                <option value="1">
+                    Medium
+                </option>
+
+                <option value="2">
+                    High
+                </option>
+
             </select>
 
-            <input name="Hypertension" placeholder="Hypertension (0/1)">
-            <input name="Diabetes" placeholder="Diabetes (0/1)">
-            <input name="Hyperlipidemia" placeholder="Hyperlipidemia (0/1)">
-            <input name="Family_History" placeholder="Family History (0/1)">
-            <input name="Previous_Heart_Attack" placeholder="Previous Heart Attack (0/1)">
 
-            <input name="Systolic_BP" placeholder="Systolic BP">
-            <input name="Diastolic_BP" placeholder="Diastolic BP">
-            <input name="Heart_Rate" placeholder="Heart Rate">
-            <input name="Blood_Sugar_Fasting" placeholder="Blood Sugar">
-            <input name="Cholesterol_Total" placeholder="Cholesterol">
+            <!-- HYPERTENSION -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Hypertension"
+                    placeholder="Hypertension (0/1)"
+                    min="0"
+                    max="1"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Enter 0 or 1
+                </span>
+
+            </div>
+
+
+            <!-- DIABETES -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Diabetes"
+                    placeholder="Diabetes (0/1)"
+                    min="0"
+                    max="1"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Enter 0 or 1
+                </span>
+
+            </div>
+
+
+            <!-- HYPERLIPIDEMIA -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Hyperlipidemia"
+                    placeholder="Hyperlipidemia (0/1)"
+                    min="0"
+                    max="1"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Enter 0 or 1
+                </span>
+
+            </div>
+
+
+            <!-- FAMILY HISTORY -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Family_History"
+                    placeholder="Family History (0/1)"
+                    min="0"
+                    max="1"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Enter 0 or 1
+                </span>
+
+            </div>
+
+
+            <!-- PREVIOUS HEART ATTACK -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Previous_Heart_Attack"
+                    placeholder="Previous Heart Attack (0/1)"
+                    min="0"
+                    max="1"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Enter 0 or 1
+                </span>
+
+            </div>
+
+
+            <!-- SYSTOLIC BP -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Systolic_BP"
+                    placeholder="Systolic BP"
+                    min="60"
+                    max="250"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Systolic BP: 60 - 250 mmHg
+                </span>
+
+            </div>
+
+
+            <!-- DIASTOLIC BP -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Diastolic_BP"
+                    placeholder="Diastolic BP"
+                    min="30"
+                    max="150"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Diastolic BP: 30 - 150 mmHg
+                </span>
+
+            </div>
+
+
+            <!-- HEART RATE -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Heart_Rate"
+                    placeholder="Heart Rate"
+                    min="30"
+                    max="220"
+                    step="1"
+                    required
+                >
+
+                <span class="field-help">
+                    Heart Rate: 30 - 220 bpm
+                </span>
+
+            </div>
+
+
+            <!-- BLOOD SUGAR -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Blood_Sugar_Fasting"
+                    placeholder="Blood Sugar"
+                    min="30"
+                    max="600"
+                    step="0.1"
+                    required
+                >
+
+                <span class="field-help">
+                    Blood Sugar: 30 - 600
+                </span>
+
+            </div>
+
+
+            <!-- CHOLESTEROL -->
+
+            <div class="field-group">
+
+                <input
+                    type="number"
+                    name="Cholesterol_Total"
+                    placeholder="Cholesterol"
+                    min="50"
+                    max="500"
+                    step="0.1"
+                    required
+                >
+
+                <span class="field-help">
+                    Cholesterol: 50 - 500
+                </span>
+
+            </div>
+
 
         </div>
 
-        <button type="submit">🔍 Predict Heart Disease Risk</button>
+
+        <button type="submit">
+            🔍 Predict Heart Disease Risk
+        </button>
 
     </form>
 
+
+    <!-- ============================================
+         PREDICTION RESULT
+    ============================================= -->
+
     {% if prediction_text %}
+
         <div class="result {{ 'high' if 'High' in prediction_text else 'low' }}">
+
             {{ prediction_text }}
+
         </div>
+
     {% endif %}
+
+
+    <!-- ============================================
+         HEALTH RECOMMENDATIONS
+    ============================================= -->
 
     {% if recommendations %}
 
-<div class="recommendations-card">
+        <div class="recommendations-card">
 
-    <div class="recommendations-header">
 
-        <div>
-            <h2>❤️ Health Recommendations</h2>
-            <p>
-                General recommendations based on your
-                predicted cardiovascular risk.
-            </p>
-        </div>
+            <div class="recommendations-header">
 
-        <div class="risk-badge
-            {% if risk == 'High Risk' %}
-                high-risk
-            {% else %}
-                low-risk
-            {% endif %}
-        ">
-            {{ risk }}
-        </div>
+                <div>
 
-    </div>
+                    <h2>
+                        ❤️ Health Recommendations
+                    </h2>
 
-    <div class="recommendation-list">
+                    <p>
+                        General recommendations based on your
+                        predicted cardiovascular risk.
+                    </p>
 
-        {% for recommendation in recommendations %}
+                </div>
 
-        <div class="recommendation-item">
 
-            <div class="recommendation-icon">
-                ✓
+                <div class="risk-badge
+                    {% if risk == 'High Risk' %}
+                        high-risk
+                    {% else %}
+                        low-risk
+                    {% endif %}
+                ">
+
+                    {{ risk }}
+
+                </div>
+
             </div>
 
-            <div>
-                {{ recommendation }}
+
+            <div class="recommendation-list">
+
+
+                {% for recommendation in recommendations %}
+
+                    <div class="recommendation-item">
+
+                        <div class="recommendation-icon">
+                            ✓
+                        </div>
+
+                        <div>
+                            {{ recommendation }}
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+
             </div>
+
+
+            <div class="medical-notice">
+
+                <strong>
+                    Important:
+                </strong>
+
+                These recommendations are for general
+                educational purposes and do not replace
+                professional medical advice, diagnosis,
+                or treatment.
+
+            </div>
+
 
         </div>
 
-        {% endfor %}
+    {% endif %}
 
-    </div>
-
-    <div class="medical-notice">
-
-        <strong>Important:</strong>
-
-        These recommendations are for general
-        educational purposes and do not replace
-        professional medical advice, diagnosis,
-        or treatment.
-
-    </div>
 
 </div>
 
-{% endif %}
 
-</div>
-<a href="/dashboard">📊 View Analytics Dashboard</a>
+<!-- ============================================
+     ANALYTICS DASHBOARD
+============================================= -->
+
+<a
+    href="/dashboard"
+    class="dashboard-link"
+>
+    📊 View Analytics Dashboard
+</a>
+
+
+<!-- ============================================
+     CLIENT-SIDE VALIDATION
+============================================= -->
+
+<script>
+
+    const form = document.getElementById("predictionForm");
+
+    form.addEventListener("submit", function(event) {
+
+        const age = Number(
+            document.querySelector('[name="Age"]').value
+        );
+
+        const weight = Number(
+            document.querySelector('[name="Weight"]').value
+        );
+
+        const height = Number(
+            document.querySelector('[name="Height"]').value
+        );
+
+        const bmi = Number(
+            document.querySelector('[name="BMI"]').value
+        );
+
+        const hypertension = Number(
+            document.querySelector('[name="Hypertension"]').value
+        );
+
+        const diabetes = Number(
+            document.querySelector('[name="Diabetes"]').value
+        );
+
+        const hyperlipidemia = Number(
+            document.querySelector('[name="Hyperlipidemia"]').value
+        );
+
+        const familyHistory = Number(
+            document.querySelector('[name="Family_History"]').value
+        );
+
+        const previousHeartAttack = Number(
+            document.querySelector('[name="Previous_Heart_Attack"]').value
+        );
+
+        const systolic = Number(
+            document.querySelector('[name="Systolic_BP"]').value
+        );
+
+        const diastolic = Number(
+            document.querySelector('[name="Diastolic_BP"]').value
+        );
+
+        const heartRate = Number(
+            document.querySelector('[name="Heart_Rate"]').value
+        );
+
+        const bloodSugar = Number(
+            document.querySelector('[name="Blood_Sugar_Fasting"]').value
+        );
+
+        const cholesterol = Number(
+            document.querySelector('[name="Cholesterol_Total"]').value
+        );
+
+
+        /* ==========================================
+           VALIDATION
+        ========================================== */
+
+        if (age < 1 || age > 120) {
+
+            alert("Age must be between 1 and 120 years.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (weight < 1 || weight > 300) {
+
+            alert("Weight must be between 1 and 300 kg.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (height < 50 || height > 250) {
+
+            alert("Height must be between 50 and 250 cm.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (bmi < 10 || bmi > 70) {
+
+            alert("BMI must be between 10 and 70.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (
+            hypertension !== 0 &&
+            hypertension !== 1
+        ) {
+
+            alert("Hypertension must be either 0 or 1.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (
+            diabetes !== 0 &&
+            diabetes !== 1
+        ) {
+
+            alert("Diabetes must be either 0 or 1.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (
+            hyperlipidemia !== 0 &&
+            hyperlipidemia !== 1
+        ) {
+
+            alert("Hyperlipidemia must be either 0 or 1.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (
+            familyHistory !== 0 &&
+            familyHistory !== 1
+        ) {
+
+            alert("Family History must be either 0 or 1.");
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (
+            previousHeartAttack !== 0 &&
+            previousHeartAttack !== 1
+        ) {
+
+            alert(
+                "Previous Heart Attack must be either 0 or 1."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (systolic < 60 || systolic > 250) {
+
+            alert(
+                "Systolic BP must be between 60 and 250 mmHg."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (diastolic < 30 || diastolic > 150) {
+
+            alert(
+                "Diastolic BP must be between 30 and 150 mmHg."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (heartRate < 30 || heartRate > 220) {
+
+            alert(
+                "Heart Rate must be between 30 and 220 bpm."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (bloodSugar < 30 || bloodSugar > 600) {
+
+            alert(
+                "Blood Sugar must be between 30 and 600."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        if (cholesterol < 50 || cholesterol > 500) {
+
+            alert(
+                "Cholesterol must be between 50 and 500."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+
+        /*
+         * Check for invalid numeric values.
+         */
+
+        const numericValues = [
+            age,
+            weight,
+            height,
+            bmi,
+            hypertension,
+            diabetes,
+            hyperlipidemia,
+            familyHistory,
+            previousHeartAttack,
+            systolic,
+            diastolic,
+            heartRate,
+            bloodSugar,
+            cholesterol
+        ];
+
+
+        if (
+            numericValues.some(
+                value => !Number.isFinite(value)
+            )
+        ) {
+
+            alert(
+                "Please enter valid numeric values."
+            );
+
+            event.preventDefault();
+
+            return;
+        }
+
+    });
+
+</script>
+
 
 </body>
+
 </html>

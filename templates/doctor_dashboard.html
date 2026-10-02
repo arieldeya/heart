@@ -347,6 +347,24 @@
 
         }
 
+        .history-button {
+    display: inline-block;
+    background: #1e3a8a;
+    color: #bfdbfe;
+    text-decoration: none;
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 5px;
+}
+
+.history-button:hover {
+    background: #1d4ed8;
+    color: white;
+}
+
     </style>
 
 </head>
@@ -591,6 +609,13 @@
         class="report-button"
     >
         📋 Medical Report
+    </a>
+
+    <a
+        href="{{ url_for('patient_history', patient_id=patient.id) }}"
+        class="history-button"
+    >
+        📊 History
     </a>
 
 </div>

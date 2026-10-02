@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient History</title>
+
+```
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #07111f;
+        color: #e5e7eb;
+    }
+
+    .container {
+        width: 92%;
+        max-width: 1200px;
+        margin: 30px auto;
+    }
+
+    .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    h1,
+    h2 {
+        margin: 0;
+    }
+
+    h1 {
+        color: #67e8f9;
+    }
+
+    .back-button {
+        background: #164e63;
+        color: white;
+        text-decoration: none;
+        padding: 10px 15px;
+        border-radius: 8px;
+    }
+
+    .card {
+        background: #0f1d2d;
+        border: 1px solid #1e3a4f;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 22px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, .18);
+    }
+
+    h2 {
+        color: #67e8f9;
+        margin-bottom: 18px;
+    }
+
+    .patient-info {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+
+    .info-box {
+        background: #111827;
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    .label {
+        display: block;
+        color: #94a3b8;
+        font-size: 12px;
+        margin-bottom: 6px;
+    }
+
+    .value {
+        font-size: 17px;
+        font-weight: bold;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 350px;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+
+    th,
+    td {
+        padding: 13px 10px;
+        text-align: left;
+        border-bottom: 1px solid #26384b;
+    }
+
+    th {
+        background: #164e63;
+        color: white;
+    }
+
+    tr:hover {
+        background: #13263a;
+    }
+
+    .risk {
+        font-weight: bold;
+    }
+
+    .probability {
+        font-weight: bold;
+        color: #67e8f9;
+    }
+
+    .empty {
+        padding: 25px;
+        text-align: center;
+        color: #94a3b8;
+    }
+
+    .hint {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-top: -8px;
+        margin-bottom: 18px;
+    }
+
+    @media (max-width: 800px) {
+        .patient-info {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .top-bar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+
+    @media (max-width: 500px) {
+        .patient-info {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+```
+
+</head>
+
+<body>
+
+<div class="container">
+
+```
+<div class="top-bar">
+    <h1>📊 Patient History</h1>
+
+    <a href="{{ url_for('doctor_dashboard') }}" class="back-button">
+        ← Back to Dashboard
+    </a>
+</div>
+
+
+<!-- PATIENT INFORMATION -->
+<div class="card">
+
+    <h2>👤 Patient Information</h2>
+
+    <div class="patient-info">
+
+        <div class="info-box">
+            <span class="label">Patient ID</span>
+            <span class="value">{{ patient.id }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="label">Patient Code</span>
+            <span class="value">
+                {{ patient.patient_code or 'Not assigned' }}
+            </span>
+        </div>
+
+        <div class="info-box">
+            <span class="label">Age</span>
+            <span class="value">{{ patient.age }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="label">Gender</span>
+            <span class="value">{{ patient.gender }}</span>
+        </div>
+
+        <div class="info-box">
+            <span class="label">BMI</span>
+            <span class="value">{{ patient.bmi }}</span>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- RISK TREND -->
+<div class="card">
+
+    <h2>📈 Risk Trend</h2>
+
+    <p class="hint">
+        Prediction probability across the patient's recorded assessments.
+    </p>
+
+    {% if history|length > 1 %}
+
+    <div class="chart-container">
+        <canvas id="riskChart"></canvas>
+    </div>
+
+    {% else %}
+
+    <div class="empty">
+        At least two predictions are needed to display a trend.
+    </div>
+
+    {% endif %}
+
+</div>
+
+
+<!-- PREDICTION HISTORY -->
+<div class="card">
+
+    <h2>❤️ Prediction History</h2>
+
+    {% if history %}
+
+    <div class="table-container">
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Date</th>
+                    <th>Risk Level</th>
+                    <th>Probability</th>
+                    <th>BMI</th>
+                    <th>Systolic BP</th>
+                    <th>Diastolic BP</th>
+                    <th>Cholesterol</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for record in history %}
+
+                <tr>
+
+                    <td>
+                        {{ record.date.strftime('%d %b %Y %H:%M')
+                           if record.date else 'N/A' }}
+                    </td>
+
+                    <td class="risk">
+                        {{ record.risk }}
+                    </td>
+
+                    <td class="probability">
+                        {{ record.probability }}%
+                    </td>
+
+                    <td>
+                        {{ record.bmi }}
+                    </td>
+
+                    <td>
+                        {{ record.systolic }}
+                    </td>
+
+                    <td>
+                        {{ record.diastolic }}
+                    </td>
+
+                    <td>
+                        {{ record.cholesterol }}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+    <div class="empty">
+        No prediction history is available for this patient.
+    </div>
+
+    {% endif %}
+
+</div>
+```
+
+</div>
+
+<!-- CHART DATA -->
+
+{% if history|length > 1 %}
+
+<script id="chart-data" type="application/json">
+{
+    "labels": {{ chart_labels | tojson }},
+    "values": {{ chart_values | tojson }}
+}
+</script>
+
+<!-- CHART JAVASCRIPT -->
+
+<script>
+
+    const chartDataElement = document.getElementById("chart-data");
+
+    const chartData = JSON.parse(
+        chartDataElement.textContent
+    );
+
+    const labels = chartData.labels;
+    const values = chartData.values;
+
+
+    const riskChartElement =
+        document.getElementById("riskChart");
+
+
+    new Chart(riskChartElement, {
+
+        type: "line",
+
+        data: {
+
+            labels: labels,
+
+            datasets: [{
+
+                label: "Prediction Probability (%)",
+
+                data: values,
+
+                tension: 0.35,
+
+                fill: false,
+
+                borderWidth: 3,
+
+                pointRadius: 5
+
+            }]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            scales: {
+
+                y: {
+
+                    beginAtZero: true,
+
+                    max: 100,
+
+                    title: {
+
+                        display: true,
+
+                        text: "Probability (%)"
+
+                    }
+
+                },
+
+                x: {
+
+                    title: {
+
+                        display: true,
+
+                        text: "Prediction Date"
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    });
+
+</script>
+
+{% endif %}
+
+</body>
+</html>
