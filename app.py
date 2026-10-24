@@ -1,4 +1,6 @@
 import os
+import secrets
+import sqlite3
 import joblib
 import numpy as np
 import pandas as pd
@@ -379,43 +381,16 @@ with app.app_context():
         db.session.add(admin)
 
 
-    doctor = User.query.filter_by(
-        username="doctor"
-    ).first()
-
-    if not doctor:
-
-        doctor = User(
-            username="doctor",
-            password="doctor123",
-            role="doctor"
-        )
-
-        db.session.add(doctor)
-
-
+    # Doctor and patient accounts are created through the application
+    # registration/administration workflows. Do not recreate default accounts
+    # automatically after an administrator removes them.
     patient_user = User.query.filter_by(
-        username="patient"
+        username="patient",
+        role="patient"
     ).first()
 
-    if not patient_user:
-
-        patient_user = User(
-            username="patient",
-            password="patient123",
-            role="patient",
-            patient_code="PATIENT-001"
-        )
-
-        db.session.add(patient_user)
-
-    else:
-
-        # Make sure existing patient account
-        # receives a patient code.
-        if not patient_user.patient_code:
-
-            patient_user.patient_code = "PATIENT-001"
+    if patient_user and not patient_user.patient_code:
+        patient_user.patient_code = "PATIENT-001"
 
 
     db.session.commit()
@@ -1987,8 +1962,21 @@ def admin_dashboard():
     # RENDER ADMIN DASHBOARD
     # --------------------------------------------------
 
+    # Session-bound token used by destructive database-management forms.
+    if "_admin_db_csrf" not in session:
+        session["_admin_db_csrf"] = secrets.token_urlsafe(32)
+
     return render_template(
         "admin_dashboard.html",
+
+        csrf_token=session["_admin_db_csrf"],
+        database_counts={
+            "patients": User.query.filter_by(role="patient").count(),
+            "doctors": User.query.filter_by(role="doctor").count(),
+            "predictions": Patient.query.count(),
+            "notes": MedicalNote.query.count(),
+            "prescriptions": Prescription.query.count()
+        },
 
         records=records,
 
@@ -2014,6 +2002,154 @@ def admin_dashboard():
     )
 
 
+
+
+
+# ============================================================
+# ADMIN DATABASE MANAGEMENT
+# ============================================================
+
+def create_admin_database_backup():
+    """Create a consistent SQLite backup before any destructive action."""
+    db.session.flush()
+    database_name = db.engine.url.database
+
+    if not database_name:
+        raise RuntimeError("Could not determine the SQLite database path.")
+
+    if not os.path.isabs(database_name):
+        database_name = os.path.join(app.instance_path, database_name)
+
+    if not os.path.isfile(database_name):
+        raise RuntimeError("The database file could not be found; no records were changed.")
+
+    backup_directory = os.path.join(app.instance_path, "backups")
+    os.makedirs(backup_directory, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    backup_path = os.path.join(
+        backup_directory,
+        f"heartcare_before_admin_clear_{timestamp}.sqlite3"
+    )
+
+    source_connection = sqlite3.connect(database_name)
+    backup_connection = sqlite3.connect(backup_path)
+    try:
+        source_connection.backup(backup_connection)
+    finally:
+        backup_connection.close()
+        source_connection.close()
+
+    return backup_path
+
+
+@app.route("/admin/database-management", methods=["POST"])
+def admin_database_management():
+    """Safely clear selected HeartCare records; the admin account is preserved."""
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    submitted_token = request.form.get("csrf_token", "")
+    session_token = session.get("_admin_db_csrf", "")
+    if not session_token or not secrets.compare_digest(submitted_token, session_token):
+        flash("Security check failed. Refresh the dashboard and try again.", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    action = request.form.get("action", "").strip()
+    confirmation = request.form.get("confirmation", "").strip()
+
+    expected_confirmations = {
+        "clear_predictions": "CLEAR PREDICTIONS",
+        "clear_patients": "CLEAR PATIENTS",
+        "reset_doctors": "RESET DOCTORS",
+        "clear_notes": "CLEAR NOTES",
+        "clear_prescriptions": "CLEAR PRESCRIPTIONS",
+        "full_reset": "RESET HEARTCARE"
+    }
+
+    if action not in expected_confirmations:
+        flash("Unknown database-management action. No records were changed.", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    if confirmation != expected_confirmations[action]:
+        flash(
+            f"Confirmation did not match. Type '{expected_confirmations[action]}' exactly. "
+            "No records were changed.",
+            "error"
+        )
+        return redirect(url_for("admin_dashboard"))
+
+    try:
+        backup_path = create_admin_database_backup()
+
+        if action == "clear_predictions":
+            # Notes and prescriptions belong to prediction-record IDs, so remove
+            # them too to avoid leaving orphaned clinical records.
+            db.session.query(MedicalNote).delete(synchronize_session=False)
+            db.session.query(Prescription).delete(synchronize_session=False)
+            db.session.query(Patient).delete(synchronize_session=False)
+            success_message = (
+                "Prediction records, their medical notes, and prescriptions were cleared. "
+                "Patient and doctor login accounts were preserved."
+            )
+
+        elif action == "clear_patients":
+            db.session.query(MedicalNote).delete(synchronize_session=False)
+            db.session.query(Prescription).delete(synchronize_session=False)
+            db.session.query(Patient).delete(synchronize_session=False)
+            db.session.query(User).filter_by(role="patient").delete(
+                synchronize_session=False
+            )
+            success_message = (
+                "Patient accounts, prediction records, medical notes, and prescriptions "
+                "were cleared. Doctor and administrator accounts were preserved."
+            )
+
+        elif action == "reset_doctors":
+            db.session.query(User).filter_by(role="doctor").delete(
+                synchronize_session=False
+            )
+            success_message = (
+                "Doctor login accounts were removed. Patient records and the administrator "
+                "account were preserved."
+            )
+
+        elif action == "clear_notes":
+            db.session.query(MedicalNote).delete(synchronize_session=False)
+            success_message = "All medical notes were cleared. Other records were preserved."
+
+        elif action == "clear_prescriptions":
+            db.session.query(Prescription).delete(synchronize_session=False)
+            success_message = "All prescriptions were cleared. Other records were preserved."
+
+        else:  # full_reset
+            db.session.query(MedicalNote).delete(synchronize_session=False)
+            db.session.query(Prescription).delete(synchronize_session=False)
+            db.session.query(Patient).delete(synchronize_session=False)
+            db.session.query(User).filter(
+                User.role.in_(["doctor", "patient"])
+            ).delete(synchronize_session=False)
+            success_message = (
+                "Full reset completed: patient and doctor accounts, prediction records, "
+                "medical notes, and prescriptions were removed. Your administrator account "
+                "and machine-learning model files were preserved."
+            )
+
+        db.session.commit()
+        relative_backup = os.path.relpath(backup_path, app.instance_path)
+        flash(f"{success_message} Backup saved at instance/{relative_backup}.", "success")
+
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("HeartCare admin database-management action failed")
+        flash(
+            "The operation failed and database changes were rolled back. "
+            "Check the application log for details.",
+            "error"
+        )
+
+    return redirect(url_for("admin_dashboard"))
 
 
 # ============================================================

@@ -657,6 +657,112 @@
                 padding: 16px;
             }
         }
+
+        .flash-message {
+            padding: 13px 16px;
+            border-radius: 9px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+        .flash-message.success {
+            color: #166534;
+            background: #dcfce7;
+            border: 1px solid #86efac;
+        }
+        .flash-message.error {
+            color: #991b1b;
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+        }
+        .database-card {
+            margin-top: 25px;
+            border: 1px solid #fecaca;
+        }
+        .database-card .card-header {
+            background: #fff7f7;
+        }
+        .database-intro {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.65;
+            margin-bottom: 18px;
+        }
+        .database-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .database-action {
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            padding: 16px;
+            background: #fff;
+            min-width: 0;
+        }
+        .database-action h4 {
+            font-size: 14px;
+            margin-bottom: 7px;
+            color: #1e293b;
+        }
+        .database-action p {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.55;
+            margin-bottom: 12px;
+        }
+        .database-action label {
+            display: block;
+            font-size: 11px;
+            font-weight: bold;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        .database-action input[type="text"] {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        .database-action button {
+            border: 0;
+            border-radius: 7px;
+            padding: 10px 12px;
+            color: white;
+            background: #dc2626;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .database-action button:hover {
+            background: #b91c1c;
+        }
+        .database-action.danger {
+            border-color: #ef4444;
+            background: #fff7f7;
+        }
+        .database-action.danger h4 {
+            color: #991b1b;
+        }
+        .database-counts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 18px;
+        }
+        .database-counts span {
+            padding: 7px 10px;
+            border-radius: 7px;
+            background: #f1f5f9;
+            color: #334155;
+            font-size: 11px;
+        }
+        @media (max-width: 800px) {
+            .database-actions { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 
@@ -813,6 +919,15 @@
 
         <section class="content">
 
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}" role="status">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
             <!-- ==========================================
                  WELCOME BANNER
@@ -1476,8 +1591,109 @@
 
                 </div>
 
+
             </div>
 
+            <!-- ==========================================
+                 DATABASE MANAGEMENT
+                 ========================================== -->
+            <div class="card database-card">
+                <div class="card-header">
+                    <h3>🛡️ Database Management</h3>
+                    <span>Administrator only</span>
+                </div>
+                <div class="card-body">
+                    <p class="database-intro">
+                        Clear selected records from HeartCare when you need to start fresh.
+                        Before each operation, the system creates a SQLite backup in
+                        <strong>instance/backups</strong>. Your administrator account and
+                        machine-learning model files are not deleted. Destructive actions
+                        require an exact confirmation phrase.
+                    </p>
+
+                    <div class="database-counts">
+                        <span>Patient accounts: <strong>{{ database_counts.patients }}</strong></span>
+                        <span>Doctor accounts: <strong>{{ database_counts.doctors }}</strong></span>
+                        <span>Predictions: <strong>{{ database_counts.predictions }}</strong></span>
+                        <span>Medical notes: <strong>{{ database_counts.notes }}</strong></span>
+                        <span>Prescriptions: <strong>{{ database_counts.prescriptions }}</strong></span>
+                    </div>
+
+                    <div class="database-actions">
+                        <div class="database-action">
+                            <h4>Clear Prediction Records</h4>
+                            <p>Removes all prediction records, plus medical notes and prescriptions linked to those records. Login accounts remain.</p>
+                            <form method="POST" action="{{ url_for('admin_database_management') }}" onsubmit="return confirm('Clear all prediction records and associated notes/prescriptions? A backup will be created first.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="action" value="clear_predictions">
+                                <label for="confirm-predictions">Type CLEAR PREDICTIONS</label>
+                                <input id="confirm-predictions" name="confirmation" type="text" required autocomplete="off" placeholder="CLEAR PREDICTIONS">
+                                <button type="submit">Clear Predictions</button>
+                            </form>
+                        </div>
+
+                        <div class="database-action">
+                            <h4>Clear Patient Records</h4>
+                            <p>Removes patient login accounts, prediction records, medical notes, and prescriptions. Doctor and administrator accounts remain.</p>
+                            <form method="POST" action="{{ url_for('admin_database_management') }}" onsubmit="return confirm('Delete all patient accounts and all patient-related records? A backup will be created first.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="action" value="clear_patients">
+                                <label for="confirm-patients">Type CLEAR PATIENTS</label>
+                                <input id="confirm-patients" name="confirmation" type="text" required autocomplete="off" placeholder="CLEAR PATIENTS">
+                                <button type="submit">Clear Patient Records</button>
+                            </form>
+                        </div>
+
+                        <div class="database-action">
+                            <h4>Reset Doctor Accounts</h4>
+                            <p>Removes doctor login accounts only. Patient records, notes, prescriptions, and the administrator account remain.</p>
+                            <form method="POST" action="{{ url_for('admin_database_management') }}" onsubmit="return confirm('Remove all doctor login accounts? A backup will be created first.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="action" value="reset_doctors">
+                                <label for="confirm-doctors">Type RESET DOCTORS</label>
+                                <input id="confirm-doctors" name="confirmation" type="text" required autocomplete="off" placeholder="RESET DOCTORS">
+                                <button type="submit">Reset Doctor Accounts</button>
+                            </form>
+                        </div>
+
+                        <div class="database-action">
+                            <h4>Clear Medical Notes</h4>
+                            <p>Removes all medical notes without deleting patient accounts, prediction records, or prescriptions.</p>
+                            <form method="POST" action="{{ url_for('admin_database_management') }}" onsubmit="return confirm('Clear all medical notes? A backup will be created first.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="action" value="clear_notes">
+                                <label for="confirm-notes">Type CLEAR NOTES</label>
+                                <input id="confirm-notes" name="confirmation" type="text" required autocomplete="off" placeholder="CLEAR NOTES">
+                                <button type="submit">Clear Medical Notes</button>
+                            </form>
+                        </div>
+
+                        <div class="database-action">
+                            <h4>Clear Prescriptions</h4>
+                            <p>Removes all prescriptions while preserving patient accounts, prediction records, and medical notes.</p>
+                            <form method="POST" action="{{ url_for('admin_database_management') }}" onsubmit="return confirm('Clear all prescriptions? A backup will be created first.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="action" value="clear_prescriptions">
+                                <label for="confirm-prescriptions">Type CLEAR PRESCRIPTIONS</label>
+                                <input id="confirm-prescriptions" name="confirmation" type="text" required autocomplete="off" placeholder="CLEAR PRESCRIPTIONS">
+                                <button type="submit">Clear Prescriptions</button>
+                            </form>
+                        </div>
+
+                        <div class="database-action danger">
+                            <h4>Full System Reset</h4>
+                            <p><strong>Most destructive option.</strong> Removes patient and doctor accounts, predictions, notes, and prescriptions. Preserves the current administrator and model files.</p>
+                            <form method="POST" action="{{ url_for('admin_database_management') }}" onsubmit="return confirm('FINAL WARNING: Reset all HeartCare records and doctor/patient accounts? The administrator and model files will remain. A backup will be created first.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="action" value="full_reset">
+                                <label for="confirm-full-reset">Type RESET HEARTCARE</label>
+                                <input id="confirm-full-reset" name="confirmation" type="text" required autocomplete="off" placeholder="RESET HEARTCARE">
+                                <button type="submit">Reset HeartCare</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </section>
 
