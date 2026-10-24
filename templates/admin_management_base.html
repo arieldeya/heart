@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}HeartCare Administration{% endblock %}</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#f1f5f9;color:#1e293b}
+.sidebar{position:fixed;inset:0 auto 0 0;width:240px;background:#111827;color:white;padding:24px 14px;overflow-y:auto}
+.brand{font-size:22px;font-weight:700;padding:0 12px 22px;border-bottom:1px solid #374151;margin-bottom:18px}.brand small{display:block;color:#94a3b8;font-size:11px;font-weight:400;margin-top:5px}
+.nav a{display:block;color:#cbd5e1;padding:12px;margin:5px 0;text-decoration:none;border-radius:8px;font-size:14px}.nav a:hover,.nav a.active{background:#2563eb;color:white}
+.main{margin-left:240px;padding:30px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:24px}h1{margin:0 0 6px;font-size:27px}.muted{color:#64748b;font-size:13px}
+.card{background:white;border:1px solid #e2e8f0;border-radius:13px;padding:22px;margin-bottom:20px;box-shadow:0 4px 14px rgba(15,23,42,.05)}
+.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-bottom:18px}label{display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:6px}
+input,select{width:100%;min-width:140px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:7px;background:white;font:inherit}.field{min-width:150px;flex:1}
+.btn{display:inline-block;border:0;border-radius:7px;padding:10px 13px;background:#2563eb;color:white;text-decoration:none;font-size:13px;font-weight:700;cursor:pointer}.btn:hover{background:#1d4ed8}.btn.secondary{background:#475569}.btn.danger{background:#dc2626}.btn.small{padding:7px 9px;font-size:12px}
+.table-wrap{width:100%;overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:13px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;vertical-align:middle}th{color:#475569;font-size:11px;text-transform:uppercase;background:#f8fafc}
+.badge{display:inline-block;border-radius:20px;padding:5px 9px;background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:700}.badge.admin{background:#ede9fe;color:#6d28d9}.badge.doctor{background:#dcfce7;color:#166534}.badge.patient{background:#dbeafe;color:#1d4ed8}
+.flash{padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}.flash.success{background:#dcfce7;color:#166534}.flash.error{background:#fee2e2;color:#991b1b}
+.inline-form{display:flex;align-items:center;gap:6px;min-width:260px}.inline-form input{min-width:120px}.empty{text-align:center;padding:35px;color:#64748b}.warning{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px}
+@media(max-width:850px){.sidebar{position:static;width:auto;height:auto}.nav{display:flex;flex-wrap:wrap}.nav a{margin-right:4px}.main{margin-left:0;padding:18px}.top{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+<div class="brand">❤️ HeartCare<small>Administration Portal</small></div>
+<nav class="nav">
+<a href="{{ url_for('admin_dashboard') }}">📊 Dashboard</a>
+<a href="{{ url_for('admin_patients') }}">👥 Manage Patients</a>
+<a href="{{ url_for('admin_doctors') }}">👨‍⚕️ Manage Doctors</a>
+<a href="{{ url_for('admin_accounts') }}">🔐 Manage Accounts</a>
+<a href="{{ url_for('admin_predictions') }}">📋 Prediction Records</a>
+<a href="{{ url_for('logout') }}">🚪 Logout</a>
+</nav>
+</aside>
+<main class="main">
+<header class="top"><div><h1>{% block heading %}Administration{% endblock %}</h1><div class="muted">HeartCare · Heart Disease Prediction System</div></div><a class="btn secondary" href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a></header>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+{% endwith %}
+{% block content %}{% endblock %}
+<p class="muted" style="text-align:center;padding:18px;">© 2026 HeartCare. Prediction results are estimates and do not replace clinical assessment.</p>
+</main>
+</body>
+</html>

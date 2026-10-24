@@ -697,8 +697,36 @@
             </li>
 
             <li>
-                <a href="{{ url_for('doctor_dashboard') }}">
+                <a href="{{ url_for('admin_patients') }}">
+                    <span class="nav-icon">👥</span>
+                    <span>Manage Patients</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="{{ url_for('admin_doctors') }}">
                     <span class="nav-icon">👨‍⚕️</span>
+                    <span>Manage Doctors</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="{{ url_for('admin_accounts') }}">
+                    <span class="nav-icon">🔐</span>
+                    <span>Manage Accounts</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="{{ url_for('admin_predictions') }}">
+                    <span class="nav-icon">📋</span>
+                    <span>Prediction Records</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="{{ url_for('doctor_dashboard') }}">
+                    <span class="nav-icon">🩺</span>
                     <span>Doctor Portal</span>
                 </a>
             </li>

@@ -1,0 +1,11 @@
+{% extends "admin_management_base.html" %}
+{% block title %}Manage Doctors | HeartCare{% endblock %}
+{% block heading %}Manage Doctors{% endblock %}
+{% block content %}
+<section class="card"><h2 style="font-size:18px;margin:0 0 16px;">Create Doctor Account</h2>
+<form method="POST" class="toolbar"><div class="field"><label for="username">Doctor username</label><input id="username" name="username" minlength="3" maxlength="100" required></div><div class="field"><label for="password">Temporary password (minimum 8 characters)</label><input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required></div><button class="btn" type="submit">Create Doctor</button></form></section>
+<section class="card"><h2 style="font-size:18px;margin:0 0 16px;">Doctor Accounts ({{ doctors|length }})</h2><div class="table-wrap"><table><thead><tr><th>Account ID</th><th>Username</th><th>Role</th><th>Action</th></tr></thead><tbody>
+{% for doctor in doctors %}<tr><td>{{ doctor.id }}</td><td>{{ doctor.username }}</td><td><span class="badge doctor">Doctor</span></td><td><form method="POST" action="{{ url_for('admin_delete_account', user_id=doctor.id) }}" onsubmit="return confirm('Delete this doctor account?');"><button class="btn danger small" type="submit">Delete Account</button></form></td></tr>
+{% else %}<tr><td colspan="4" class="empty">No doctor accounts found.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

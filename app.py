@@ -21,8 +21,8 @@ from flask import (
 )
 
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-from sqlalchemy import text
+from datetime import datetime, timedelta
+from sqlalchemy import text, or_
 
 from flask_login import (
     LoginManager,
@@ -1658,85 +1658,202 @@ def dashboard():
         low_risk=low_risk
     )
 
+# ============================================================
+# PATIENT REGISTRATION
+# ============================================================
+
+def generate_patient_code():
+    existing_users = User.query.filter(
+        User.patient_code.isnot(None)
+    ).all()
+
+    numbers = []
+
+    for user in existing_users:
+        code = user.patient_code or ""
+
+        if code.startswith("PATIENT-"):
+            try:
+                number = int(code.split("-")[1])
+                numbers.append(number)
+            except (ValueError, IndexError):
+                continue
+
+    next_number = max(numbers, default=0) + 1
+
+    return f"PATIENT-{next_number:03d}"
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+
+    if request.method == "POST":
+
+        username = request.form.get(
+            "username", ""
+        ).strip()
+
+        password = request.form.get(
+            "password", ""
+        )
+
+        confirm_password = request.form.get(
+            "confirm_password", ""
+        )
+
+        # Validate required fields
+        if not username or not password or not confirm_password:
+            return render_template(
+                "register.html",
+                error="Please complete all fields."
+            )
+
+        # Validate username length
+        if len(username) < 3 or len(username) > 100:
+            return render_template(
+                "register.html",
+                error="Username must contain 3–100 characters."
+            )
+
+        # Validate password length
+        if len(password) < 8:
+            return render_template(
+                "register.html",
+                error="Password must contain at least 8 characters."
+            )
+
+        # Confirm password
+        if password != confirm_password:
+            return render_template(
+                "register.html",
+                error="Passwords do not match."
+            )
+
+        # Prevent duplicate usernames
+        existing_user = User.query.filter_by(
+            username=username
+        ).first()
+
+        if existing_user:
+            return render_template(
+                "register.html",
+                error="This username is already registered."
+            )
+
+        # Generate a unique patient code
+        patient_code = generate_patient_code()
+
+        # Create the patient account
+        new_patient = User(
+            username=username,
+            password=generate_password_hash(password),
+            role="patient",
+            patient_code=patient_code
+        )
+
+        try:
+            db.session.add(new_patient)
+            db.session.commit()
+
+            return render_template(
+                "login.html",
+                success=(
+                    "Registration successful! "
+                    f"Your patient code is {patient_code}. "
+                    "Please log in."
+                )
+            )
+
+        except Exception:
+            db.session.rollback()
+
+            return render_template(
+                "register.html",
+                error="Registration failed. Please try again."
+            )
+
+    return render_template("register.html")
+
+
 
 # ============================================================
 # LOGIN
 # ============================================================
 
-@app.route(
-    "/login",
-    methods=["GET", "POST"]
-)
+@app.route("/login", methods=["GET", "POST"])
 def login():
 
     if request.method == "POST":
 
         username = request.form.get(
-            "username",
-            ""
+            "username", ""
         ).strip()
 
         password = request.form.get(
-            "password",
-            ""
+            "password", ""
         )
-
 
         user = User.query.filter_by(
             username=username
         ).first()
 
+        password_valid = False
 
-        # ----------------------------------------------------
-        # Current project accounts use plaintext passwords.
-        # Keep compatibility with your existing database.
-        # ----------------------------------------------------
+        if user and user.password:
 
-        if user and user.password == password:
+            stored_password = user.password
+
+            # Support existing accounts with hashed passwords
+            if stored_password.startswith(("scrypt:", "pbkdf2:")):
+
+                try:
+                    password_valid = check_password_hash(
+                        stored_password,
+                        password
+                    )
+                except (ValueError, TypeError):
+                    password_valid = False
+
+            else:
+
+                # Support existing plaintext accounts
+                password_valid = (
+                    stored_password == password
+                )
+
+                # Upgrade the password after successful login
+                if password_valid:
+                    user.password = generate_password_hash(
+                        password
+                    )
+                    db.session.commit()
+
+        if user and password_valid:
 
             session.clear()
 
             session["user"] = user.username
-
             session["role"] = user.role
-
             session["user_id"] = user.id
+            session["patient_code"] = user.patient_code
 
-            session["patient_code"] = (
-                user.patient_code
-            )
-
-
+            # Redirect users according to their roles
             if user.role == "admin":
-
-                return redirect(
-                    "/admin"
-                )
-
+                return redirect("/admin")
 
             elif user.role == "doctor":
-
-                return redirect(
-                    "/doctor"
-                )
-
+                return redirect("/doctor")
 
             elif user.role == "patient":
-
-                return redirect(
-                    "/patient"
-                )
-
+                return redirect("/patient")
 
         return render_template(
             "login.html",
             error="Invalid username or password."
         )
 
+    return render_template("login.html")
 
-    return render_template(
-        "login.html"
-    )
 
 
 # ============================================================
@@ -1897,255 +2014,351 @@ def admin_dashboard():
     )
 
 
+
+
 # ============================================================
-# DOCTOR DASHBOARD
+# ADMIN MANAGEMENT TOOLS
 # ============================================================
+
+def admin_access_check():
+    """Return a response when the current session is not an admin."""
+    if "role" not in session:
+        return redirect(url_for("login"))
+    if session.get("role") != "admin":
+        return ("Access Denied", 403)
+    return None
+
+
+def filtered_prediction_query():
+    """Build a filtered query for admin prediction-record pages."""
+    query = Patient.query
+    patient_code = request.args.get("patient_code", "").strip()
+    risk = request.args.get("risk", "").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+
+    if patient_code:
+        query = query.filter(Patient.patient_code.ilike(f"%{patient_code}%"))
+    if risk in ("High Risk", "Low Risk"):
+        query = query.filter_by(risk=risk)
+    if start_date:
+        try:
+            query = query.filter(Patient.date >= datetime.strptime(start_date, "%Y-%m-%d"))
+        except ValueError:
+            flash("The start date was invalid and was ignored.", "error")
+    if end_date:
+        try:
+            end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(Patient.date < end)
+        except ValueError:
+            flash("The end date was invalid and was ignored.", "error")
+    return query.order_by(Patient.date.desc())
+
+
+@app.route("/admin/patients")
+def admin_patients():
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    search = request.args.get("search", "").strip()
+    query = User.query.filter_by(role="patient")
+    if search:
+        query = query.filter(or_(
+            User.username.ilike(f"%{search}%"),
+            User.patient_code.ilike(f"%{search}%")
+        ))
+    patients = query.order_by(User.id.desc()).all()
+    prediction_counts = {
+        user.patient_code: Patient.query.filter_by(patient_code=user.patient_code).count()
+        for user in patients if user.patient_code
+    }
+    return render_template(
+        "admin_patients.html",
+        patients=patients,
+        prediction_counts=prediction_counts,
+        search=search
+    )
+
+
+@app.route("/admin/doctors", methods=["GET", "POST"])
+def admin_doctors():
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        if len(username) < 3 or len(username) > 100:
+            flash("Doctor username must be between 3 and 100 characters.", "error")
+        elif len(password) < 8:
+            flash("Doctor password must contain at least 8 characters.", "error")
+        elif User.query.filter_by(username=username).first():
+            flash("That username is already in use.", "error")
+        else:
+            try:
+                doctor = User(
+                    username=username,
+                    password=generate_password_hash(password),
+                    role="doctor"
+                )
+                db.session.add(doctor)
+                db.session.commit()
+                flash(f"Doctor account '{username}' created successfully.", "success")
+                return redirect(url_for("admin_doctors"))
+            except Exception:
+                db.session.rollback()
+                flash("Could not create the doctor account.", "error")
+
+    doctors = User.query.filter_by(role="doctor").order_by(User.id.desc()).all()
+    return render_template("admin_doctors.html", doctors=doctors)
+
+
+@app.route("/admin/accounts")
+def admin_accounts():
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    search = request.args.get("search", "").strip()
+    role = request.args.get("role", "").strip()
+    query = User.query
+    if search:
+        query = query.filter(or_(
+            User.username.ilike(f"%{search}%"),
+            User.patient_code.ilike(f"%{search}%")
+        ))
+    if role in ("admin", "doctor", "patient"):
+        query = query.filter_by(role=role)
+    accounts = query.order_by(User.id.desc()).all()
+    return render_template(
+        "admin_accounts.html",
+        accounts=accounts,
+        search=search,
+        selected_role=role
+    )
+
+
+@app.route("/admin/accounts/<int:user_id>/password", methods=["POST"])
+def admin_reset_password(user_id):
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    user = User.query.get_or_404(user_id)
+    new_password = request.form.get("new_password", "")
+    if len(new_password) < 8:
+        flash("New password must contain at least 8 characters.", "error")
+    else:
+        try:
+            user.password = generate_password_hash(new_password)
+            db.session.commit()
+            flash(f"Password updated for '{user.username}'.", "success")
+        except Exception:
+            db.session.rollback()
+            flash("Password could not be updated.", "error")
+    return redirect(url_for("admin_accounts"))
+
+
+@app.route("/admin/accounts/<int:user_id>/delete", methods=["POST"])
+def admin_delete_account(user_id):
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    user = User.query.get_or_404(user_id)
+    if user.id == session.get("user_id"):
+        flash("You cannot delete the account you are currently using.", "error")
+        return redirect(url_for("admin_accounts"))
+    if user.role == "admin" and User.query.filter_by(role="admin").count() <= 1:
+        flash("The last administrator account cannot be deleted.", "error")
+        return redirect(url_for("admin_accounts"))
+
+    username = user.username
+    try:
+        # Preserve historical prediction records when removing a login account.
+        db.session.delete(user)
+        db.session.commit()
+        flash(f"Account '{username}' deleted. Existing prediction records were preserved.", "success")
+    except Exception:
+        db.session.rollback()
+        flash("The account could not be deleted.", "error")
+    return redirect(url_for("admin_accounts"))
+
+
+@app.route("/admin/predictions")
+def admin_predictions():
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    records = filtered_prediction_query().limit(500).all()
+    return render_template(
+        "admin_predictions.html",
+        records=records,
+        patient_code=request.args.get("patient_code", "").strip(),
+        selected_risk=request.args.get("risk", "").strip(),
+        start_date=request.args.get("start_date", "").strip(),
+        end_date=request.args.get("end_date", "").strip()
+    )
+
+
+@app.route("/admin/predictions/export")
+def admin_export_predictions():
+    access_response = admin_access_check()
+    if access_response:
+        return access_response
+
+    records = filtered_prediction_query().all()
+    export_rows = [{
+        "Record ID": record.id,
+        "Patient Code": record.patient_code or "N/A",
+        "Date": record.date.isoformat(sep=" ") if record.date else "",
+        "Age": record.age,
+        "Gender (model encoding)": record.gender,
+        "BMI": record.bmi,
+        "Systolic BP": record.systolic,
+        "Diastolic BP": record.diastolic,
+        "Cholesterol": record.cholesterol,
+        "Risk": record.risk,
+        "Probability (%)": record.probability
+    } for record in records]
+
+    csv_data = pd.DataFrame(export_rows).to_csv(index=False).encode("utf-8-sig")
+    return send_file(
+        BytesIO(csv_data),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="heartcare_prediction_records.csv"
+    )
+
+
+# ============================================================
+# DOCTOR DASHBOARD AND PATIENT RECORD ACCESS
+# ============================================================
+
+def doctor_or_admin_required():
+    """Require an authenticated doctor or administrator."""
+    if "role" not in session:
+        return redirect(url_for("login"))
+    if session.get("role") not in ("doctor", "admin"):
+        return ("Access denied. A doctor or administrator account is required.", 403)
+    return None
+
+
+def build_doctor_patient_query():
+    """Apply the same safe search and filter rules to doctor record pages."""
+    search = request.args.get("search", "").strip()
+    risk = request.args.get("risk", "").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+
+    query = Patient.query
+    if search:
+        conditions = [Patient.patient_code.ilike(f"%{search}%")]
+        if search.isdigit():
+            conditions.append(Patient.id == int(search))
+        query = query.filter(or_(*conditions))
+
+    if risk in ("High Risk", "Low Risk"):
+        query = query.filter(Patient.risk == risk)
+    else:
+        risk = ""
+
+    date_error = None
+    if start_date:
+        try:
+            query = query.filter(Patient.date >= datetime.strptime(start_date, "%Y-%m-%d"))
+        except ValueError:
+            date_error = "The start date is invalid."
+            start_date = ""
+    if end_date:
+        try:
+            # Include all records on the selected end date.
+            end_exclusive = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(Patient.date < end_exclusive)
+        except ValueError:
+            date_error = "The end date is invalid."
+            end_date = ""
+
+    records = query.order_by(Patient.date.desc()).limit(500).all()
+    return records, search, risk, start_date, end_date, date_error
+
 
 @app.route("/doctor")
 def doctor_dashboard():
+    access_response = doctor_or_admin_required()
+    if access_response:
+        return access_response
 
-    if "role" not in session:
-
-        return redirect(
-            "/login"
-        )
-
-
-    if session["role"] not in [
-        "doctor",
-        "admin"
-    ]:
-
-        return "Access Denied"
-
-
-    search = request.args.get(
-        "search",
-        ""
-    ).strip()
-
-
-    risk = request.args.get(
-        "risk",
-        ""
-    ).strip()
-
-
-    query = Patient.query
-
-
-    if search:
-
-        if search.isdigit():
-
-            query = query.filter(
-                db.or_(
-                    Patient.id == int(search),
-
-                    Patient.gender.ilike(
-                        f"%{search}%"
-                    )
-                )
-            )
-
-        else:
-
-            query = query.filter(
-                Patient.gender.ilike(
-                    f"%{search}%"
-                )
-            )
-
-
-    if risk:
-
-        query = query.filter(
-            Patient.risk == risk
-        )
-
-
-    patients = query.order_by(
-        Patient.date.desc()
-    ).all()
-
+    records, search, risk, start_date, end_date, date_error = build_doctor_patient_query()
+    unique_codes = {r.patient_code for r in records if r.patient_code}
+    unique_patients = len(unique_codes) + sum(1 for r in records if not r.patient_code)
+    high_risk_count = sum(1 for r in records if r.risk == "High Risk")
+    low_risk_count = sum(1 for r in records if r.risk == "Low Risk")
 
     return render_template(
         "doctor_dashboard.html",
-
-        patients=patients,
-
+        patients=records,
         search=search,
-
-        risk=risk
+        risk=risk,
+        start_date=start_date,
+        end_date=end_date,
+        date_error=date_error,
+        total_records=len(records),
+        unique_patients=unique_patients,
+        high_risk_count=high_risk_count,
+        low_risk_count=low_risk_count,
     )
 
 
-# ============================================================
-# DOCTOR SEARCH
-# ============================================================
-
-@app.route(
-    "/doctor/search-patients"
-)
+@app.route("/doctor/search-patients")
 def doctor_search_patients():
+    access_response = doctor_or_admin_required()
+    if access_response:
+        return access_response
 
-    if "role" not in session:
-
-        return redirect(
-            "/login"
-        )
-
-
-    if session["role"] not in [
-        "doctor",
-        "admin"
-    ]:
-
-        return "Access Denied"
-
-
-    search = request.args.get(
-        "search",
-        ""
-    ).strip()
-
-
-    risk = request.args.get(
-        "risk",
-        ""
-    ).strip()
-
-
-    query = Patient.query
-
-
-    if search:
-
-        if search.isdigit():
-
-            query = query.filter(
-                db.or_(
-                    Patient.id == int(search),
-
-                    Patient.gender.ilike(
-                        f"%{search}%"
-                    )
-                )
-            )
-
-        else:
-
-            query = query.filter(
-                Patient.gender.ilike(
-                    f"%{search}%"
-                )
-            )
-
-
-    if risk:
-
-        query = query.filter(
-            Patient.risk == risk
-        )
-
-
-    patients = query.order_by(
-        Patient.date.desc()
-    ).all()
-
-
+    records, search, risk, start_date, end_date, date_error = build_doctor_patient_query()
     return render_template(
         "doctor_search_patients.html",
-
-        patients=patients,
-
+        patients=records,
         search=search,
-
-        risk=risk
+        risk=risk,
+        start_date=start_date,
+        end_date=end_date,
+        date_error=date_error,
     )
 
 
-# ============================================================
-# DOCTOR PATIENT HISTORY
-# ============================================================
-
-@app.route(
-    "/doctor/patient/<int:patient_id>/history"
-)
+@app.route("/doctor/patient/<int:patient_id>/history")
 def patient_history(patient_id):
+    access_response = doctor_or_admin_required()
+    if access_response:
+        return access_response
 
-    if "role" not in session:
-
-        return redirect(
-            "/login"
-        )
-
-
-    if session["role"] not in [
-        "doctor",
-        "admin"
-    ]:
-
-        return "Access Denied"
-
-
-    patient = Patient.query.get_or_404(
-        patient_id
-    )
-
-
+    patient = Patient.query.get_or_404(patient_id)
     if patient.patient_code:
-
         history_records = Patient.query.filter_by(
             patient_code=patient.patient_code
-        ).order_by(
-            Patient.date.desc()
-        ).all()
-
+        ).order_by(Patient.date.desc()).all()
     else:
+        # Legacy records without a patient code cannot safely be grouped.
+        history_records = [patient]
 
-        history_records = [
-            patient
-        ]
-
-
-    chart_labels = []
-
-    chart_values = []
-
-
-    for record in reversed(
-        history_records
-    ):
-
-        chart_labels.append(
-
-            record.date.strftime(
-                "%d %b %Y"
-            )
-
-            if record.date
-
-            else "Unknown"
-
-        )
-
-
-        chart_values.append(
-            record.probability or 0
-        )
-
+    chart_labels = [
+        record.date.strftime("%d %b %Y") if record.date else "Unknown"
+        for record in reversed(history_records)
+    ]
+    chart_values = [round(record.probability or 0, 2) for record in reversed(history_records)]
 
     return render_template(
         "patient_history.html",
-
         patient=patient,
-
         history=history_records,
-
         chart_labels=chart_labels,
-
-        chart_values=chart_values
+        chart_values=chart_values,
+        view_mode="doctor",
     )
 
 
@@ -2392,7 +2605,8 @@ def patient_history_portal():
         chart_values=[
             r.probability or 0
             for r in reversed(records)
-        ]
+        ],
+        view_mode="patient",
     )
 
 

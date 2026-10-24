@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Patient Registration | HeartCare</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f5f9;
+        }
+
+        .registration-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 35px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 42px;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            text-align: center;
+            color: #12344d;
+        }
+
+        .subtitle {
+            margin-bottom: 28px;
+            text-align: center;
+            color: #687782;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            margin: 16px 0 7px;
+            font-weight: bold;
+            color: #263746;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccd6df;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        input:focus {
+            outline: 2px solid #0d9488;
+            border-color: #0d9488;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 24px;
+            padding: 13px;
+            border: none;
+            border-radius: 7px;
+            background: #0d9488;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0f766e;
+        }
+
+        .error {
+            padding: 11px;
+            border-radius: 6px;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .login-link {
+            margin-top: 22px;
+            text-align: center;
+            color: #596875;
+        }
+
+        a {
+            color: #0d9488;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .notice {
+            margin-top: 20px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #687782;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="registration-card">
+
+        <div class="logo">🫀</div>
+
+        <h1>Join HeartCare</h1>
+
+        <p class="subtitle">
+            Create your patient account to access
+            your heart disease prediction history.
+        </p>
+
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('register') }}">
+
+            <label for="username">Choose a username</label>
+
+            <input
+                type="text"
+                id="username"
+                name="username"
+                minlength="3"
+                maxlength="100"
+                autocomplete="username"
+                required
+            >
+
+            <label for="password">Create a password</label>
+
+            <input
+                type="password"
+                id="password"
+                name="password"
+                minlength="8"
+                autocomplete="new-password"
+                required
+            >
+
+            <label for="confirm_password">Confirm password</label>
+
+            <input
+                type="password"
+                id="confirm_password"
+                name="confirm_password"
+                minlength="8"
+                autocomplete="new-password"
+                required
+            >
+
+            <button type="submit">
+                Create Patient Account
+            </button>
+
+        </form>
+
+        <p class="login-link">
+            Already registered?
+            <a href="{{ url_for('login') }}">Log in</a>
+        </p>
+
+        <p class="notice">
+            HeartCare provides risk predictions for educational
+            and decision-support purposes. Results are not a
+            substitute for professional medical assessment.
+        </p>
+
+    </main>
+
+</body>
+</html>

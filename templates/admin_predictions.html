@@ -1,0 +1,16 @@
+{% extends "admin_management_base.html" %}
+{% block title %}Prediction Records | HeartCare{% endblock %}
+{% block heading %}Prediction Records{% endblock %}
+{% block content %}
+<section class="card"><form method="GET" class="toolbar">
+<div class="field"><label for="patient_code">Patient code</label><input id="patient_code" name="patient_code" value="{{ patient_code }}" placeholder="e.g. PATIENT-001"></div>
+<div class="field"><label for="risk">Risk category</label><select id="risk" name="risk"><option value="">All risk levels</option><option value="High Risk" {% if selected_risk == "High Risk" %}selected{% endif %}>High Risk</option><option value="Low Risk" {% if selected_risk == "Low Risk" %}selected{% endif %}>Low Risk</option></select></div>
+<div class="field"><label for="start_date">From date</label><input type="date" id="start_date" name="start_date" value="{{ start_date }}"></div><div class="field"><label for="end_date">To date</label><input type="date" id="end_date" name="end_date" value="{{ end_date }}"></div>
+<button class="btn" type="submit">Apply Filters</button><a class="btn secondary" href="{{ url_for('admin_predictions') }}">Clear</a><a class="btn" href="{{ url_for('admin_export_predictions', patient_code=patient_code, risk=selected_risk, start_date=start_date, end_date=end_date) }}">Export CSV</a>
+</form><p class="muted" style="margin-bottom:14px;">Showing up to 500 matching records. CSV export includes all matching records.</p>
+<div class="table-wrap"><table><thead><tr><th>Record ID</th><th>Patient Code</th><th>Date</th><th>Age</th><th>Gender Code</th><th>BMI</th><th>Blood Pressure</th><th>Risk</th><th>Probability</th><th>Report</th></tr></thead><tbody>
+{% for record in records %}<tr><td>{{ record.id }}</td><td>{{ record.patient_code or "N/A" }}</td><td>{{ record.date.strftime("%d %b %Y %H:%M") if record.date else "N/A" }}</td><td>{{ record.age if record.age is not none else "N/A" }}</td><td>{{ record.gender if record.gender is not none else "N/A" }}</td><td>{{ "%.1f"|format(record.bmi) if record.bmi is not none else "N/A" }}</td><td>{{ record.systolic if record.systolic is not none else "?" }} / {{ record.diastolic if record.diastolic is not none else "?" }}</td><td><span class="badge {{ 'admin' if record.risk == 'High Risk' else 'patient' }}">{{ record.risk or "Unknown" }}</span></td><td>{{ "%.2f"|format(record.probability) if record.probability is not none else "N/A" }}{% if record.probability is not none %}%{% endif %}</td><td><a class="btn small" href="{{ url_for('medical_report', patient_id=record.id) }}">View</a></td></tr>
+{% else %}<tr><td colspan="10" class="empty">No prediction records match these filters.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<div class="warning">Risk labels and probabilities are model outputs, not a medical diagnosis. Review results alongside clinical assessment.</div>
+{% endblock %}

@@ -1,67 +1,147 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>HeartCare - Login</title>
 
     <style>
-
-        body{
-            background:#071120;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            font-family:Segoe UI;
+        body {
+            background: #071120;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
         }
 
-        .login-box{
-            background:#0f172a;
-            padding:40px;
-            border-radius:20px;
-            width:350px;
-            color:white;
+        .login-box {
+            background: #0f172a;
+            padding: 40px;
+            border-radius: 20px;
+            width: 350px;
+            max-width: calc(100% - 80px);
+            color: white;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
         }
 
-        input{
-            width:100%;
-            padding:14px;
-            margin-top:15px;
-            border:none;
-            border-radius:10px;
-            background:#1e293b;
-            color:white;
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
         }
 
-        button{
-            width:100%;
-            padding:14px;
-            margin-top:20px;
-            border:none;
-            border-radius:10px;
-            background:#00ffd5;
-            font-weight:bold;
-            cursor:pointer;
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 20px;
         }
 
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 14px;
+            margin-top: 15px;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            background: #1e293b;
+            color: white;
+            font-size: 15px;
+        }
+
+        input:focus {
+            outline: 2px solid #00ffd5;
+            border-color: transparent;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 10px;
+            background: #00ffd5;
+            color: #071120;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #00d9b5;
+        }
+
+        .alert-danger {
+            background: #451a1a;
+            color: #fca5a5;
+            border: 1px solid #dc2626;
+            padding: 12px;
+            margin: 20px 0 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .register-link {
+            margin-top: 25px;
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        a {
+            color: #00ffd5;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
     </style>
-
 </head>
 
 <body>
 
 <div class="login-box">
 
-    <h1>Heart Disease AI</h1>
+    <h1>HeartCare AI</h1>
 
-    <form method="POST">
+    <p class="subtitle">Heart Disease Prediction System</p>
 
-        <input type="text" name="username" placeholder="Username" required>
+    {% if error %}
+        <div class="alert-danger" role="alert">
+            {{ error }}
+        </div>
+    {% endif %}
 
-        <input type="password" name="password" placeholder="Password" required>
+    <form method="POST" action="{{ url_for('login') }}">
+
+        <input
+            type="text"
+            name="username"
+            placeholder="Username"
+            autocomplete="username"
+            required
+        >
+
+        <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            autocomplete="current-password"
+            required
+        >
 
         <button type="submit">Login</button>
 
     </form>
+
+    <p class="register-link">
+        Don't have an account?
+        <a href="{{ url_for('register') }}">Register as a patient</a>
+    </p>
 
 </div>
 

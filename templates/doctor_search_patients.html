@@ -1,0 +1,20 @@
+{% extends "doctor_base.html" %}
+{% block title %}Search Patient Records | HeartCare{% endblock %}
+{% block heading %}Search Patient Records{% endblock %}
+{% block content %}
+<section class="card">
+  <p class="muted">Search prediction records by patient code or record ID. Use the filters to narrow the results.</p>
+  {% if date_error %}<div class="alert">{{ date_error }}</div>{% endif %}
+  <form class="toolbar" method="GET" action="{{ url_for('doctor_search_patients') }}">
+    <div class="field"><label for="search">Patient code or record ID</label><input id="search" name="search" value="{{ search }}" placeholder="PATIENT-002 or 12"></div>
+    <div class="field"><label for="risk">Risk category</label><select id="risk" name="risk"><option value="">All risk levels</option><option value="High Risk" {% if risk == 'High Risk' %}selected{% endif %}>High Risk</option><option value="Low Risk" {% if risk == 'Low Risk' %}selected{% endif %}>Low Risk</option></select></div>
+    <div class="field"><label for="start_date">From date</label><input type="date" id="start_date" name="start_date" value="{{ start_date }}"></div>
+    <div class="field"><label for="end_date">To date</label><input type="date" id="end_date" name="end_date" value="{{ end_date }}"></div>
+    <button class="btn" type="submit">Search</button><a class="btn light" href="{{ url_for('doctor_search_patients') }}">Clear</a>
+  </form>
+  <div class="table-wrap"><table><thead><tr><th>Record ID</th><th>Patient Code</th><th>Date</th><th>Age</th><th>BMI</th><th>Blood Pressure</th><th>Cholesterol</th><th>Risk</th><th>Probability</th><th>Actions</th></tr></thead><tbody>
+  {% for record in patients %}<tr><td>#{{ record.id }}</td><td>{{ record.patient_code or 'Unlinked legacy record' }}</td><td>{{ record.date.strftime('%d %b %Y, %H:%M') if record.date else 'N/A' }}</td><td>{{ record.age if record.age is not none else 'N/A' }}</td><td>{{ '%.1f'|format(record.bmi) if record.bmi is not none else 'N/A' }}</td><td>{{ record.systolic if record.systolic is not none else 'N/A' }}/{{ record.diastolic if record.diastolic is not none else 'N/A' }}</td><td>{{ record.cholesterol if record.cholesterol is not none else 'N/A' }}</td><td>{% if record.risk == 'High Risk' %}<span class="badge high">High Risk</span>{% elif record.risk == 'Low Risk' %}<span class="badge low">Low Risk</span>{% else %}<span class="badge unknown">{{ record.risk or 'N/A' }}</span>{% endif %}</td><td>{{ '%.2f'|format(record.probability) if record.probability is not none else 'N/A' }}{% if record.probability is not none %}%{% endif %}</td><td><div class="actions"><a class="btn small" href="{{ url_for('patient_history', patient_id=record.id) }}">History</a><a class="btn small secondary" href="{{ url_for('medical_report', patient_id=record.id) }}">Report</a><a class="btn small light" href="{{ url_for('medical_notes', patient_id=record.id) }}">Notes</a><a class="btn small light" href="{{ url_for('prescription', patient_id=record.id) }}">Care plan</a></div></td></tr>
+  {% else %}<tr><td colspan="10" class="empty">No matching records found.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}
